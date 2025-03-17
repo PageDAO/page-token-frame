@@ -19,32 +19,7 @@ function isInitialButtonPress(body) {
 }
 
 // Helper function to create overview SVG with network names
-
-function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
-  // Extract the data from priceData
-  const { ethereum, optimism, base, osmosis, weightedAvgPrice, totalTVL, chainData } = priceData;
-  
-  // Calculate market cap based on weighted average price
-  const marketCap = weightedAvgPrice * circulatingSupply;
-  const fdv = weightedAvgPrice * totalSupply;
-  
-  // Safely format TVL values with fallbacks
-  const formatTVL = (tvl) => {
-    if (typeof tvl === 'number' && !isNaN(tvl)) {
-      return `${tvl.toLocaleString()}`;
-    }
-    return '$0';
-  };
-  
-  // Create the TVL breakdown text
-  const tvlBreakdown = `
-    <text x="100" y="500" font-size="36" fill="#dddddd">Total TVL: ${formatTVL(totalTVL)}</text>
-    <text x="120" y="550" font-size="24" fill="#aaaaaa">ETH: ${formatTVL(chainData?.ethereum?.tvl || 0)}</text>
-    <text x="320" y="550" font-size="24" fill="#aaaaaa">OP: ${formatTVL(chainData?.optimism?.tvl || 0)}</text>
-    <text x="520" y="550" font-size="24" fill="#aaaaaa">Base: ${formatTVL(chainData?.base?.tvl || 0)}</text>
-    <text x="720" y="550" font-size="24" fill="#aaaaaa">Osmosis: ${formatTVL(chainData?.osmosis?.tvl || 0)}</text>
-  `;
-
+function createOverviewSvg(avgPrice, marketCap, fdv, circulatingSupply, totalSupply) {
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
       <!-- Background with simple color -->
@@ -54,15 +29,13 @@ function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
       <text x="100" y="110" font-size="64" fill="white" font-weight="bold">$PAGE Token Metrics</text>
       
       <!-- Key metrics section -->
-      <text x="100" y="200" font-size="48" fill="white">Weighted Avg Price: $${weightedAvgPrice.toFixed(6)}</text>
+      <text x="100" y="200" font-size="48" fill="white">Average Price: $${avgPrice.toFixed(6)}</text>
       <text x="100" y="280" font-size="48" fill="white">Market Cap: $${(marketCap).toLocaleString()}</text>
       <text x="100" y="360" font-size="48" fill="white">Fully Diluted Value: $${(fdv).toLocaleString()}</text>
       
       <!-- Supply information -->
       <text x="100" y="440" font-size="36" fill="#dddddd">Circulating Supply: ${circulatingSupply.toLocaleString()} PAGE</text>
-      
-      <!-- TVL information -->
-      ${tvlBreakdown}
+      <text x="100" y="500" font-size="36" fill="#dddddd">Total Supply: ${totalSupply.toLocaleString()} PAGE</text>
       
       <!-- Network label box -->
       <rect x="800" y="40" width="320" height="200" rx="10" fill="#2a3f55"/>
@@ -73,97 +46,17 @@ function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
       <text x="960" y="220" font-size="24" text-anchor="middle" fill="#5E12A0">Osmosis Mainnet</text>
       
       <!-- Footer with timestamp -->
-      <text x="100" y="600" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
+      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
 }
 
-// Update how the overview SVG is generated in the handler function
-// In the button press handler for "Show Prices" button
-
-if (buttonPressed === 1 && isInitialButtonPress(body)) {
-  // Fetch latest prices for all calculations
-  const priceData = await fetchPagePrices();
-  console.log("Fetched prices and TVL data:", priceData);
-  
-  // Use price data directly instead of calculating avgPrice
-  // priceData now contains weightedAvgPrice
-  const svg = createOverviewSvg(priceData, CIRCULATING_SUPPLY, TOTAL_SUPPLY);
-  
-  // Encode SVG to data URI
-  const svgBase64 = Buffer.from(svg).toString('base64');
-  imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-  
-  return {
-    statusCode: 200,
-    headers: {"Content-Type": "text/html"},
-    body: `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta property="fc:frame" content="vNext" />
-      <meta property="fc:frame:image" content="${imageUrl}" />
-      <meta property="fc:frame:button:1" content="Ethereum" />
-      <meta property="fc:frame:button:2" content="Optimism" />
-      <meta property="fc:frame:button:3" content="Base" />
-      <meta property="fc:frame:button:4" content="Osmosis" />
-      <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-      <meta property="fc:frame:state" content="overview" />
-      <title>PAGE Token Metrics</title>
-    </head>
-    <body></body>
-    </html>
-    `
-  };
-}
-
-// Update how the overview SVG is generated in the handler function
-// In the button press handler for "Show Prices" button
-
-if (buttonPressed === 1 && isInitialButtonPress(body)) {
-  // Fetch latest prices for all calculations
-  const priceData = await fetchPagePrices();
-  console.log("Fetched prices and TVL data:", priceData);
-  
-  // Use price data directly instead of calculating avgPrice
-  // priceData now contains weightedAvgPrice
-  const svg = createOverviewSvg(priceData, CIRCULATING_SUPPLY, TOTAL_SUPPLY);
-  
-  // Encode SVG to data URI
-  const svgBase64 = Buffer.from(svg).toString('base64');
-  imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-  
-  return {
-    statusCode: 200,
-    headers: {"Content-Type": "text/html"},
-    body: `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta property="fc:frame" content="vNext" />
-      <meta property="fc:frame:image" content="${imageUrl}" />
-      <meta property="fc:frame:button:1" content="Ethereum" />
-      <meta property="fc:frame:button:2" content="Optimism" />
-      <meta property="fc:frame:button:3" content="Base" />
-      <meta property="fc:frame:button:4" content="Osmosis" />
-      <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-      <meta property="fc:frame:state" content="overview" />
-      <title>PAGE Token Metrics</title>
-    </head>
-    <body></body>
-    </html>
-    `
-  };
-}
-
 // Function to create chain-specific SVG
-
-function createChainDetailSvg(chainName, price, tvl, priceData) {
+function createChainDetailSvg(chainName, price, tvl) {
   // Get chain-specific styling
   let chainColor = "#4dabf7"; // Default blue
   let fullNetworkName = "Ethereum Mainnet";
   let poolVersion = "";
-  let chain = chainName.toLowerCase();
   
   if (chainName.toUpperCase() === 'ETHEREUM') {
     chainColor = "#6F7CBA";
@@ -187,10 +80,6 @@ function createChainDetailSvg(chainName, price, tvl, priceData) {
 
   // Add pool version display if it exists
   const versionText = poolVersion ? ` (${poolVersion})` : '';
-  
-  // Calculate the TVL percentage of the total
-  let tvlValue = 0;
-  if (typeof tvl === 'string' && tvl.startsWith('
 
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
@@ -206,22 +95,15 @@ function createChainDetailSvg(chainName, price, tvl, priceData) {
       
       <!-- Price -->
       <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">$${price.toFixed(6)}</tspan></text>
-      <text x="100" y="270" font-size="28" fill="${priceComparisonColor}">${priceComparisonText}</text>
       
       <!-- TVL -->
-      <text x="100" y="350" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
-      <text x="100" y="400" font-size="28" fill="#dddddd">${tvlPercentage}% of total TVL</text>
+      <text x="100" y="320" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
       
       <!-- Pool Info (for v3) -->
       ${poolVersion === 'v3' ? `
-      <rect x="100" y="450" width="500" height="80" rx="10" fill="#233240"/>
-      <text x="120" y="500" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
+      <rect x="100" y="380" width="500" height="80" rx="10" fill="#233240"/>
+      <text x="120" y="430" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
       ` : ''}
-      
-      <!-- Weighted average price reference -->
-      <rect x="700" y="350" width="420" height="100" rx="10" fill="#233240"/>
-      <text x="720" y="380" font-size="24" fill="#dddddd">Weighted Avg Price: <tspan fill="white">$${priceData.weightedAvgPrice.toFixed(6)}</tspan></text>
-      <text x="720" y="420" font-size="24" fill="#dddddd">Total TVL: <tspan fill="white">$${priceData.totalTVL.toLocaleString()}</tspan></text>
       
       <!-- Footer with timestamp -->
       <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
@@ -229,67 +111,24 @@ function createChainDetailSvg(chainName, price, tvl, priceData) {
   `;
 }
 
-// In the frame.js handler, update the chain-specific button handler to pass priceData to createChainDetailSvg:
-
-// In the chain-specific button handling section
-const svg = createChainDetailSvg(chainName, price, tvl, priceData);
-)) {
-    // Extract numeric value from the tvl string
-    tvlValue = parseFloat(tvl.substring(1).replace(/,/g, ''));
-  }
-  
-  const totalTVL = priceData?.totalTVL || 0;
-  const tvlPercentage = totalTVL > 0 ? (tvlValue / totalTVL * 100).toFixed(2) : 0;
-  
-  // Add comparison to the weighted average price
-  // Default to the average of existing prices if weighted average is not available
-  const weightedAvg = priceData?.weightedAvgPrice || price;
-  const priceComparedToWeighted = ((price / weightedAvg) - 1) * 100;
-  const priceComparisonColor = priceComparedToWeighted >= 0 ? "#4CAF50" : "#F44336";
-  const priceComparisonSign = priceComparedToWeighted >= 0 ? "+" : "";
-  const priceComparisonText = `${priceComparisonSign}${priceComparedToWeighted.toFixed(2)}% vs weighted avg`;
-
+// Error SVG with improved visuals
+function createErrorSvg(errorMessage) {
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
-      <!-- Background -->
-      <rect width="1200" height="628" fill="#1e2d3a"/>
+      <rect width="1200" height="628" fill="#5c1e1e"/>
+      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">Error Fetching $PAGE Prices</text>
+      <text x="100" y="220" font-size="48" fill="#eeeeee">Please try again later</text>
+      <text x="100" y="320" font-size="32" fill="#dddddd">${errorMessage || 'Connection error'}</text>
       
-      <!-- Title -->
-      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">$PAGE on ${chainName}</text>
+      <!-- Warning icon -->
+      <circle cx="1000" cy="120" r="70" fill="#5c1e1e" stroke="#ff6b6b" stroke-width="3"/>
+      <text x="1000" y="140" font-size="80" text-anchor="middle" fill="#ff6b6b">!</text>
       
-      <!-- Network Name -->
-      <rect x="800" y="40" width="320" height="80" rx="10" fill="${chainColor}"/>
-      <text x="960" y="90" font-size="28" text-anchor="middle" fill="white" font-weight="bold">${fullNetworkName}${versionText}</text>
-      
-      <!-- Price -->
-      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">$${price.toFixed(6)}</tspan></text>
-      <text x="100" y="270" font-size="28" fill="${priceComparisonColor}">${priceComparisonText}</text>
-      
-      <!-- TVL -->
-      <text x="100" y="350" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
-      <text x="100" y="400" font-size="28" fill="#dddddd">${tvlPercentage}% of total TVL</text>
-      
-      <!-- Pool Info (for v3) -->
-      ${poolVersion === 'v3' ? `
-      <rect x="100" y="450" width="500" height="80" rx="10" fill="#233240"/>
-      <text x="120" y="500" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
-      ` : ''}
-      
-      <!-- Weighted average price reference -->
-      <rect x="700" y="350" width="420" height="100" rx="10" fill="#233240"/>
-      <text x="720" y="380" font-size="24" fill="#dddddd">Weighted Avg Price: <tspan fill="white">$${priceData.weightedAvgPrice.toFixed(6)}</tspan></text>
-      <text x="720" y="420" font-size="24" fill="#dddddd">Total TVL: <tspan fill="white">$${priceData.totalTVL.toLocaleString()}</tspan></text>
-      
-      <!-- Footer with timestamp -->
+      <!-- Footer -->
       <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
 }
-
-// In the frame.js handler, update the chain-specific button handler to pass priceData to createChainDetailSvg:
-
-// In the chain-specific button handling section
-const svg = createChainDetailSvg(chainName, price, tvl, priceData);
 
 exports.handler = async function(event) {
   try {
