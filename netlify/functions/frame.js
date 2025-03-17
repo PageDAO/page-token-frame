@@ -19,23 +19,30 @@ function isInitialButtonPress(body) {
 }
 
 // Helper function to create overview SVG with network names
-// Update the createOverviewSvg function in frame.js to include the weighted average price and total TVL
 
 function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
   // Extract the data from priceData
-  const { ethereum, optimism, base, osmosis, weightedAvgPrice, totalTVL } = priceData;
+  const { ethereum, optimism, base, osmosis, weightedAvgPrice, totalTVL, chainData } = priceData;
   
   // Calculate market cap based on weighted average price
   const marketCap = weightedAvgPrice * circulatingSupply;
   const fdv = weightedAvgPrice * totalSupply;
   
+  // Safely format TVL values with fallbacks
+  const formatTVL = (tvl) => {
+    if (typeof tvl === 'number' && !isNaN(tvl)) {
+      return `${tvl.toLocaleString()}`;
+    }
+    return '$0';
+  };
+  
   // Create the TVL breakdown text
   const tvlBreakdown = `
-    <text x="100" y="500" font-size="36" fill="#dddddd">Total TVL: $${totalTVL.toLocaleString()}</text>
-    <text x="120" y="550" font-size="24" fill="#aaaaaa">ETH: $${priceData.chainData.ethereum.tvl.toLocaleString()}</text>
-    <text x="320" y="550" font-size="24" fill="#aaaaaa">OP: $${priceData.chainData.optimism.tvl.toLocaleString()}</text>
-    <text x="520" y="550" font-size="24" fill="#aaaaaa">Base: $${priceData.chainData.base.tvl.toLocaleString()}</text>
-    <text x="720" y="550" font-size="24" fill="#aaaaaa">Osmosis: $${priceData.chainData.osmosis.tvl.toLocaleString()}</text>
+    <text x="100" y="500" font-size="36" fill="#dddddd">Total TVL: ${formatTVL(totalTVL)}</text>
+    <text x="120" y="550" font-size="24" fill="#aaaaaa">ETH: ${formatTVL(chainData?.ethereum?.tvl || 0)}</text>
+    <text x="320" y="550" font-size="24" fill="#aaaaaa">OP: ${formatTVL(chainData?.optimism?.tvl || 0)}</text>
+    <text x="520" y="550" font-size="24" fill="#aaaaaa">Base: ${formatTVL(chainData?.base?.tvl || 0)}</text>
+    <text x="720" y="550" font-size="24" fill="#aaaaaa">Osmosis: ${formatTVL(chainData?.osmosis?.tvl || 0)}</text>
   `;
 
   return `
@@ -69,6 +76,45 @@ function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
       <text x="100" y="600" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
+}
+
+// Update how the overview SVG is generated in the handler function
+// In the button press handler for "Show Prices" button
+
+if (buttonPressed === 1 && isInitialButtonPress(body)) {
+  // Fetch latest prices for all calculations
+  const priceData = await fetchPagePrices();
+  console.log("Fetched prices and TVL data:", priceData);
+  
+  // Use price data directly instead of calculating avgPrice
+  // priceData now contains weightedAvgPrice
+  const svg = createOverviewSvg(priceData, CIRCULATING_SUPPLY, TOTAL_SUPPLY);
+  
+  // Encode SVG to data URI
+  const svgBase64 = Buffer.from(svg).toString('base64');
+  imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
+  
+  return {
+    statusCode: 200,
+    headers: {"Content-Type": "text/html"},
+    body: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta property="fc:frame" content="vNext" />
+      <meta property="fc:frame:image" content="${imageUrl}" />
+      <meta property="fc:frame:button:1" content="Ethereum" />
+      <meta property="fc:frame:button:2" content="Optimism" />
+      <meta property="fc:frame:button:3" content="Base" />
+      <meta property="fc:frame:button:4" content="Osmosis" />
+      <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+      <meta property="fc:frame:state" content="overview" />
+      <title>PAGE Token Metrics</title>
+    </head>
+    <body></body>
+    </html>
+    `
+  };
 }
 
 // Update how the overview SVG is generated in the handler function
