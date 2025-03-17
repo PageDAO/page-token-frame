@@ -24,7 +24,7 @@ let priceCache = {
 /**
  * Fetches PAGE token prices from all supported chains
  */
-// In tokenServices.js, modify the fetchPagePrices function
+
 
 async function fetchPagePrices() {
   // Check if cache is still valid
@@ -55,6 +55,10 @@ async function fetchPagePrices() {
       (async () => {
         try {
           const ethereumToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 1);
+          if (!ethereumToken) {
+            console.error('Ethereum token config not found');
+            return;
+          }
           const poolData = await getPoolReserves(ethereumToken.lpAddress, ethereumToken, 'ethereum');
           chainData.ethereum.price = calculatePagePrice(poolData, ethPrice);
           chainData.ethereum.pageAmount = poolData.tokenAAmount;
@@ -156,24 +160,28 @@ async function fetchPagePrices() {
   }
 }
 
-// Helper function to get Osmosis data including PAGE amount
+/**
+ * Helper function to get Osmosis data including PAGE amount
+ * @returns {Promise<Object>} - Pool data including PAGE amount, price, and TVL
+ */
 async function fetchOsmosisPoolData() {
-  // Get PAGE/OSMO pool data
-  const poolResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${POOL_ID}`);
-  
-  if (!poolResponse.data || !poolResponse.data.pool || !poolResponse.data.pool.pool_assets) {
-    throw new Error('Invalid pool data structure');
-  }
-  
-  const assets = poolResponse.data.pool.pool_assets;
-  
-  // Find PAGE and OSMO in pool assets
-  const pageAsset = assets.find(asset => asset.token.denom === OSMOSIS_PAGE_DENOM);
-  const osmoAsset = assets.find(asset => asset.token.denom === 'uosmo');
-  
-  if (!pageAsset || !osmoAsset) {
-    throw new Error('Could not identify tokens in pool');
-  }
+  try {
+    // Get PAGE/OSMO pool data
+    const poolResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${POOL_ID}`);
+    
+    if (!poolResponse.data || !poolResponse.data.pool || !poolResponse.data.pool.pool_assets) {
+      throw new Error('Invalid pool data structure');
+    }
+    
+    const assets = poolResponse.data.pool.pool_assets;
+    
+    // Find PAGE and OSMO in pool assets
+    const pageAsset = assets.find(asset => asset.token.denom === OSMOSIS_PAGE_DENOM);
+    const osmoAsset = assets.find(asset => asset.token.denom === 'uosmo');
+    
+    if (!pageAsset || !osmoAsset) {
+      throw new Error('Could not identify tokens in pool');
+    }
   
   // Get amounts from pool assets
   const pageAmount = Number(pageAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.PAGE);
