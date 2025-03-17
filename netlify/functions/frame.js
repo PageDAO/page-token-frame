@@ -19,7 +19,25 @@ function isInitialButtonPress(body) {
 }
 
 // Helper function to create overview SVG with network names
-function createOverviewSvg(avgPrice, marketCap, fdv, circulatingSupply, totalSupply) {
+// Update the createOverviewSvg function in frame.js to include the weighted average price and total TVL
+
+function createOverviewSvg(priceData, circulatingSupply, totalSupply) {
+  // Extract the data from priceData
+  const { ethereum, optimism, base, osmosis, weightedAvgPrice, totalTVL } = priceData;
+  
+  // Calculate market cap based on weighted average price
+  const marketCap = weightedAvgPrice * circulatingSupply;
+  const fdv = weightedAvgPrice * totalSupply;
+  
+  // Create the TVL breakdown text
+  const tvlBreakdown = `
+    <text x="100" y="500" font-size="36" fill="#dddddd">Total TVL: $${totalTVL.toLocaleString()}</text>
+    <text x="120" y="550" font-size="24" fill="#aaaaaa">ETH: $${priceData.chainData.ethereum.tvl.toLocaleString()}</text>
+    <text x="320" y="550" font-size="24" fill="#aaaaaa">OP: $${priceData.chainData.optimism.tvl.toLocaleString()}</text>
+    <text x="520" y="550" font-size="24" fill="#aaaaaa">Base: $${priceData.chainData.base.tvl.toLocaleString()}</text>
+    <text x="720" y="550" font-size="24" fill="#aaaaaa">Osmosis: $${priceData.chainData.osmosis.tvl.toLocaleString()}</text>
+  `;
+
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
       <!-- Background with simple color -->
@@ -29,13 +47,15 @@ function createOverviewSvg(avgPrice, marketCap, fdv, circulatingSupply, totalSup
       <text x="100" y="110" font-size="64" fill="white" font-weight="bold">$PAGE Token Metrics</text>
       
       <!-- Key metrics section -->
-      <text x="100" y="200" font-size="48" fill="white">Average Price: $${avgPrice.toFixed(6)}</text>
+      <text x="100" y="200" font-size="48" fill="white">Weighted Avg Price: $${weightedAvgPrice.toFixed(6)}</text>
       <text x="100" y="280" font-size="48" fill="white">Market Cap: $${(marketCap).toLocaleString()}</text>
       <text x="100" y="360" font-size="48" fill="white">Fully Diluted Value: $${(fdv).toLocaleString()}</text>
       
       <!-- Supply information -->
       <text x="100" y="440" font-size="36" fill="#dddddd">Circulating Supply: ${circulatingSupply.toLocaleString()} PAGE</text>
-      <text x="100" y="500" font-size="36" fill="#dddddd">Total Supply: ${totalSupply.toLocaleString()} PAGE</text>
+      
+      <!-- TVL information -->
+      ${tvlBreakdown}
       
       <!-- Network label box -->
       <rect x="800" y="40" width="320" height="200" rx="10" fill="#2a3f55"/>
@@ -46,9 +66,48 @@ function createOverviewSvg(avgPrice, marketCap, fdv, circulatingSupply, totalSup
       <text x="960" y="220" font-size="24" text-anchor="middle" fill="#5E12A0">Osmosis Mainnet</text>
       
       <!-- Footer with timestamp -->
-      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
+      <text x="100" y="600" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
+}
+
+// Update how the overview SVG is generated in the handler function
+// In the button press handler for "Show Prices" button
+
+if (buttonPressed === 1 && isInitialButtonPress(body)) {
+  // Fetch latest prices for all calculations
+  const priceData = await fetchPagePrices();
+  console.log("Fetched prices and TVL data:", priceData);
+  
+  // Use price data directly instead of calculating avgPrice
+  // priceData now contains weightedAvgPrice
+  const svg = createOverviewSvg(priceData, CIRCULATING_SUPPLY, TOTAL_SUPPLY);
+  
+  // Encode SVG to data URI
+  const svgBase64 = Buffer.from(svg).toString('base64');
+  imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
+  
+  return {
+    statusCode: 200,
+    headers: {"Content-Type": "text/html"},
+    body: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta property="fc:frame" content="vNext" />
+      <meta property="fc:frame:image" content="${imageUrl}" />
+      <meta property="fc:frame:button:1" content="Ethereum" />
+      <meta property="fc:frame:button:2" content="Optimism" />
+      <meta property="fc:frame:button:3" content="Base" />
+      <meta property="fc:frame:button:4" content="Osmosis" />
+      <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+      <meta property="fc:frame:state" content="overview" />
+      <title>PAGE Token Metrics</title>
+    </head>
+    <body></body>
+    </html>
+    `
+  };
 }
 
 // Function to create chain-specific SVG
