@@ -24,6 +24,8 @@ let priceCache = {
 /**
  * Fetches PAGE token prices from all supported chains
  */
+// In tokenServices.js, modify the fetchPagePrices function
+
 async function fetchPagePrices() {
   // Check if cache is still valid
   const now = Date.now();
@@ -32,39 +34,188 @@ async function fetchPagePrices() {
     return priceCache;
   }
 
-  console.log('Fetching fresh PAGE token prices...');
+  console.log('Fetching fresh PAGE token prices and TVL data...');
   
   try {
     // First get ETH price - we need this for all EVM chain calculations
     const ethPrice = await fetchEthPrice();
     console.log('Fetched ETH price:', ethPrice);
     
-    // Fetch prices in parallel
-    const [osmosisPrice, ethereumPrice, optimismPrice, basePrice, osmosisTVL] = await Promise.all([
-      fetchOsmosisPrice(),
-      fetchEthereumPagePrice(ethPrice),
-      fetchOptimismPagePrice(ethPrice),
-      fetchBasePagePrice(ethPrice),
-      fetchOsmosisTVL()
+    // Create an object to store all our TVL and price data
+    const chainData = {
+      ethereum: { price: 0, tvl: 0, pageAmount: 0 },
+      optimism: { price: 0, tvl: 0, pageAmount: 0 },
+      base: { price: 0, tvl: 0, pageAmount: 0 },
+      osmosis: { price: 0, tvl: 0, pageAmount: 0 }
+    };
+    
+    // Fetch all chain data in parallel
+    await Promise.all([
+      // Ethereum
+      (async () => {
+        try {
+          const ethereumToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 1);
+          const poolData = await getPoolReserves(ethereumToken.lpAddress, ethereumToken, 'ethereum');
+          chainData.ethereum.price = calculatePagePrice(poolData, ethPrice);
+          chainData.ethereum.pageAmount = poolData.tokenAAmount;
+          chainData.ethereum.tvl = (poolData.tokenAAmount * chainData.ethereum.price) + 
+                                  (poolData.tokenBAmount * ethPrice);
+          console.log('Ethereum data:', chainData.ethereum);
+        } catch (error) {
+          console.error('Error fetching Ethereum data:', error);
+        }
+      })(),
+      
+      // Optimism
+      (async () => {
+        try {
+          const optimismToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 10);
+          const poolData = await getPoolReserves(optimismToken.lpAddress, optimismToken, 'optimism');
+          chainData.optimism.price = calculatePagePrice(poolData, ethPrice);
+          chainData.optimism.pageAmount = poolData.tokenAAmount;
+          chainData.optimism.tvl = (poolData.tokenAAmount * chainData.optimism.price) + 
+                                  (poolData.tokenBAmount * ethPrice);
+          console.log('Optimism data:', chainData.optimism);
+        } catch (error) {
+          console.error('Error fetching Optimism data:', error);
+        }
+      })(),
+      
+      // Base
+      (async () => {
+        try {
+          const baseToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 8453);
+          const poolData = await getPoolReserves(baseToken.lpAddress, baseToken, 'base');
+          chainData.base.price = calculatePagePrice(poolData, ethPrice);
+          // For v3 pool, calculate TVL using dedicated function
+          if (baseToken.poolType === 'v3') {
+            chainData.base.tvl = await getV3PoolTVL(
+              baseToken.lpAddress,
+              baseToken,
+              'base',
+              chainData.base.price,
+              ethPrice
+            );
+            // Estimate PAGE amount by dividing half of TVL by price
+            chainData.base.pageAmount = (chainData.base.tvl / 2) / chainData.base.price;
+          } else {
+            chainData.base.pageAmount = poolData.tokenAAmount;
+            chainData.base.tvl = (poolData.tokenAAmount * chainData.base.price) + 
+                                (poolData.tokenBAmount * ethPrice);
+          }
+          console.log('Base data:', chainData.base);
+        } catch (error) {
+          console.error('Error fetching Base data:', error);
+        }
+      })(),
+      
+      // Osmosis
+      (async () => {
+        try {
+          const osmosisData = await fetchOsmosisPoolData();
+          chainData.osmosis.price = osmosisData.pagePrice;
+          chainData.osmosis.pageAmount = osmosisData.pageAmount;
+          chainData.osmosis.tvl = osmosisData.totalTvl;
+          console.log('Osmosis data:', chainData.osmosis);
+        } catch (error) {
+          console.error('Error fetching Osmosis data:', error);
+        }
+      })()
     ]);
-
-    // Update cache
+    
+    // Calculate total TVL across all chains
+    const totalTVL = Object.values(chainData).reduce((sum, data) => sum + data.tvl, 0);
+    
+    // Calculate total PAGE tokens across all pools
+    const totalPageAmount = Object.values(chainData).reduce((sum, data) => sum + data.pageAmount, 0);
+    
+    // Calculate weighted average price
+    // This divides the total value by the total number of tokens
+    const weightedAvgPrice = totalTVL / (2 * totalPageAmount); // Divide by 2 since TVL includes both sides
+    
+    // Update cache with all our data
     priceCache = {
-      ethereum: ethereumPrice,
-      optimism: optimismPrice,
-      base: basePrice,
-      osmosis: osmosisPrice,
+      ethereum: chainData.ethereum.price,
+      optimism: chainData.optimism.price,
+      base: chainData.base.price,
+      osmosis: chainData.osmosis.price,
       ethPrice: ethPrice,
-      osmosisTVL: osmosisTVL,
+      // Add the new values
+      totalTVL: totalTVL,
+      totalPageAmount: totalPageAmount,
+      weightedAvgPrice: weightedAvgPrice,
+      chainData: chainData, // Store full chain data for reference
       timestamp: now
     };
 
-    console.log('Updated price cache:', priceCache);
+    console.log('Updated price cache with weighted average:', priceCache);
     return priceCache;
   } catch (error) {
     console.error('Error fetching prices:', error);
-    throw error; // Let the error propagate to the caller
+    throw error;
   }
+}
+
+// Helper function to get Osmosis data including PAGE amount
+async function fetchOsmosisPoolData() {
+  // Get PAGE/OSMO pool data
+  const poolResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${POOL_ID}`);
+  
+  if (!poolResponse.data || !poolResponse.data.pool || !poolResponse.data.pool.pool_assets) {
+    throw new Error('Invalid pool data structure');
+  }
+  
+  const assets = poolResponse.data.pool.pool_assets;
+  
+  // Find PAGE and OSMO in pool assets
+  const pageAsset = assets.find(asset => asset.token.denom === OSMOSIS_PAGE_DENOM);
+  const osmoAsset = assets.find(asset => asset.token.denom === 'uosmo');
+  
+  if (!pageAsset || !osmoAsset) {
+    throw new Error('Could not identify tokens in pool');
+  }
+  
+  // Get amounts from pool assets
+  const pageAmount = Number(pageAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.PAGE);
+  const osmoAmount = Number(osmoAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.OSMO);
+  
+  // Get OSMO/USDC price
+  const osmoUsdcResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${OSMO_USDC_POOL_ID}`);
+  
+  if (!osmoUsdcResponse.data || !osmoUsdcResponse.data.pool || !osmoUsdcResponse.data.pool.pool_assets) {
+    throw new Error('Invalid OSMO/USDC pool data');
+  }
+  
+  const osmoUsdcAssets = osmoUsdcResponse.data.pool.pool_assets;
+  
+  const osmoUsdcAsset = osmoUsdcAssets.find(asset => asset.token.denom === 'uosmo');
+  const usdcAsset = osmoUsdcAssets.find(asset => asset.token.denom.includes(OSMO_USDC_DENOM));
+  
+  if (!osmoUsdcAsset || !usdcAsset) {
+    throw new Error('Could not identify tokens in OSMO/USDC pool');
+  }
+  
+  const osmoAmountUsdcPool = Number(osmoUsdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.OSMO);
+  const usdcAmount = Number(usdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.USDC);
+  
+  // Calculate OSMO price in USD
+  const osmoUsdPrice = usdcAmount / osmoAmountUsdcPool;
+  
+  // Calculate PAGE price in USD
+  const pagePrice = (osmoAmount * osmoUsdPrice) / pageAmount;
+  
+  // Calculate TVL in USD
+  const osmoValueInUsd = osmoAmount * osmoUsdPrice;
+  const pageValueInUsd = pageAmount * pagePrice;
+  const totalTvl = osmoValueInUsd + pageValueInUsd;
+  
+  return {
+    pageAmount,
+    osmoAmount,
+    pagePrice,
+    osmoUsdPrice,
+    totalTvl
+  };
 }
 
 /**
