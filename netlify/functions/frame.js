@@ -157,7 +157,6 @@ if (buttonPressed === 1 && isInitialButtonPress(body)) {
 }
 
 // Function to create chain-specific SVG
-// Update the createChainDetailSvg function to include TVL percentage of total
 
 function createChainDetailSvg(chainName, price, tvl, priceData) {
   // Get chain-specific styling
@@ -191,16 +190,61 @@ function createChainDetailSvg(chainName, price, tvl, priceData) {
   
   // Calculate the TVL percentage of the total
   let tvlValue = 0;
-  if (typeof tvl === 'string' && tvl.startsWith('$')) {
+  if (typeof tvl === 'string' && tvl.startsWith('
+
+  return `
+    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="1200" height="628" fill="#1e2d3a"/>
+      
+      <!-- Title -->
+      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">$PAGE on ${chainName}</text>
+      
+      <!-- Network Name -->
+      <rect x="800" y="40" width="320" height="80" rx="10" fill="${chainColor}"/>
+      <text x="960" y="90" font-size="28" text-anchor="middle" fill="white" font-weight="bold">${fullNetworkName}${versionText}</text>
+      
+      <!-- Price -->
+      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">$${price.toFixed(6)}</tspan></text>
+      <text x="100" y="270" font-size="28" fill="${priceComparisonColor}">${priceComparisonText}</text>
+      
+      <!-- TVL -->
+      <text x="100" y="350" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
+      <text x="100" y="400" font-size="28" fill="#dddddd">${tvlPercentage}% of total TVL</text>
+      
+      <!-- Pool Info (for v3) -->
+      ${poolVersion === 'v3' ? `
+      <rect x="100" y="450" width="500" height="80" rx="10" fill="#233240"/>
+      <text x="120" y="500" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
+      ` : ''}
+      
+      <!-- Weighted average price reference -->
+      <rect x="700" y="350" width="420" height="100" rx="10" fill="#233240"/>
+      <text x="720" y="380" font-size="24" fill="#dddddd">Weighted Avg Price: <tspan fill="white">$${priceData.weightedAvgPrice.toFixed(6)}</tspan></text>
+      <text x="720" y="420" font-size="24" fill="#dddddd">Total TVL: <tspan fill="white">$${priceData.totalTVL.toLocaleString()}</tspan></text>
+      
+      <!-- Footer with timestamp -->
+      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
+    </svg>
+  `;
+}
+
+// In the frame.js handler, update the chain-specific button handler to pass priceData to createChainDetailSvg:
+
+// In the chain-specific button handling section
+const svg = createChainDetailSvg(chainName, price, tvl, priceData);
+)) {
     // Extract numeric value from the tvl string
     tvlValue = parseFloat(tvl.substring(1).replace(/,/g, ''));
   }
   
-  const totalTVL = priceData.totalTVL;
+  const totalTVL = priceData?.totalTVL || 0;
   const tvlPercentage = totalTVL > 0 ? (tvlValue / totalTVL * 100).toFixed(2) : 0;
   
   // Add comparison to the weighted average price
-  const priceComparedToWeighted = ((price / priceData.weightedAvgPrice) - 1) * 100;
+  // Default to the average of existing prices if weighted average is not available
+  const weightedAvg = priceData?.weightedAvgPrice || price;
+  const priceComparedToWeighted = ((price / weightedAvg) - 1) * 100;
   const priceComparisonColor = priceComparedToWeighted >= 0 ? "#4CAF50" : "#F44336";
   const priceComparisonSign = priceComparedToWeighted >= 0 ? "+" : "";
   const priceComparisonText = `${priceComparisonSign}${priceComparedToWeighted.toFixed(2)}% vs weighted avg`;
@@ -246,25 +290,6 @@ function createChainDetailSvg(chainName, price, tvl, priceData) {
 
 // In the chain-specific button handling section
 const svg = createChainDetailSvg(chainName, price, tvl, priceData);
-
-// Error SVG with improved visuals
-function createErrorSvg(errorMessage) {
-  return `
-    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1200" height="628" fill="#5c1e1e"/>
-      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">Error Fetching $PAGE Prices</text>
-      <text x="100" y="220" font-size="48" fill="#eeeeee">Please try again later</text>
-      <text x="100" y="320" font-size="32" fill="#dddddd">${errorMessage || 'Connection error'}</text>
-      
-      <!-- Warning icon -->
-      <circle cx="1000" cy="120" r="70" fill="#5c1e1e" stroke="#ff6b6b" stroke-width="3"/>
-      <text x="1000" y="140" font-size="80" text-anchor="middle" fill="#ff6b6b">!</text>
-      
-      <!-- Footer -->
-      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
-    </svg>
-  `;
-}
 
 exports.handler = async function(event) {
   try {
