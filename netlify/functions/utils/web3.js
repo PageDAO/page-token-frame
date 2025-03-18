@@ -11,7 +11,7 @@ const COMBINED_RPC_URLS = {
 /**
  * Try all providers in the list until one works
  * @param {string} chain - Chain name (ethereum, optimism, base)
- * @returns {Promise<ethers.JsonRpcProvider>} - Working provider
+ * @returns {Promise<ethers.providers.JsonRpcProvider>} - Working provider
  */
 async function getProvider(chain) {
   if (!COMBINED_RPC_URLS[chain] || COMBINED_RPC_URLS[chain].length === 0) {
@@ -25,11 +25,8 @@ async function getProvider(chain) {
     try {
       console.log(`Trying RPC for ${chain}: ${rpcUrl}`);
       
-      // Create provider and ensure it's initialized
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      
-      // Important: Wait for the provider to be ready
-      await provider.ready;
+      // Create provider with ethers v5 syntax
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       
       // Test the provider with a simple call to verify it's working
       const blockNumber = await provider.getBlockNumber();
