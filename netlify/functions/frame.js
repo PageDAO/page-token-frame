@@ -57,25 +57,25 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
       
       <!-- Ethereum -->
       <text x="720" y="130" font-size="24" fill="#6F7CBA" font-weight="bold">Ethereum:</text>
-      <text x="850" y="130" font-size="24" text-anchor="left" fill="#ffffff">${prices.ethereum.toFixed(6)}</text>
+      <text x="850" y="130" font-size="24" text-anchor="left" fill="#ffffff">$${prices.ethereum.toFixed(6)}</text>
       <text x="1040" y="130" font-size="24" text-anchor="right" fill="#ffffff">${ethereumWeight}%</text>
       <text x="1080" y="130" font-size="20" text-anchor="right" fill="#aaaaaa">${ethereumTVL}</text>
       
       <!-- Optimism -->
       <text x="720" y="180" font-size="24" fill="#FF0420" font-weight="bold">Optimism:</text>
-      <text x="850" y="180" font-size="24" text-anchor="left" fill="#ffffff">${prices.optimism.toFixed(6)}</text>
+      <text x="850" y="180" font-size="24" text-anchor="left" fill="#ffffff">$${prices.optimism.toFixed(6)}</text>
       <text x="1040" y="180" font-size="24" text-anchor="right" fill="#ffffff">${optimismWeight}%</text>
       <text x="1080" y="180" font-size="20" text-anchor="right" fill="#aaaaaa">${optimismTVL}</text>
       
       <!-- Base -->
       <text x="720" y="230" font-size="24" fill="#0052FF" font-weight="bold">Base:</text>
-      <text x="850" y="230" font-size="24" text-anchor="left" fill="#ffffff">${prices.base.toFixed(6)}</text>
+      <text x="850" y="230" font-size="24" text-anchor="left" fill="#ffffff">$${prices.base.toFixed(6)}</text>
       <text x="1040" y="230" font-size="24" text-anchor="right" fill="#ffffff">${baseWeight}%</text>
       <text x="1080" y="230" font-size="20" text-anchor="right" fill="#aaaaaa">${baseTVL}</text>
       
       <!-- Osmosis -->
       <text x="720" y="280" font-size="24" fill="#5E12A0" font-weight="bold">Osmosis:</text>
-      <text x="850" y="280" font-size="24" text-anchor="left" fill="#ffffff">${prices.osmosis.toFixed(6)}</text>
+      <text x="850" y="280" font-size="24" text-anchor="left" fill="#ffffff">$${prices.osmosis.toFixed(6)}</text>
       <text x="1040" y="280" font-size="24" text-anchor="right" fill="#ffffff">${osmosisWeight}%</text>
       <text x="1080" y="280" font-size="20" text-anchor="right" fill="#aaaaaa">${osmosisTVL}</text>
       
@@ -85,6 +85,99 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
       <text x="720" y="380" font-size="18" fill="#aaaaaa">*Weighted by liquidity across networks</text>
       
       <!-- Footer with timestamp -->
+      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
+    </svg>
+  `;
+}
+
+// Function to create chain-specific SVG
+function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {
+  // Get chain-specific styling
+  let chainColor = "#4dabf7"; // Default blue
+  let fullNetworkName = "Ethereum Mainnet";
+  let poolVersion = "";
+  
+  if (chainName.toUpperCase() === 'ETHEREUM') {
+    chainColor = "#6F7CBA";
+    fullNetworkName = "Ethereum Mainnet";
+    poolVersion = "v2";
+  }
+  else if (chainName.toUpperCase() === 'OPTIMISM') {
+    chainColor = "#FF0420";
+    fullNetworkName = "Optimism Mainnet";
+    poolVersion = "v2";
+  }
+  else if (chainName.toUpperCase() === 'BASE') {
+    chainColor = "#0052FF";
+    fullNetworkName = "Base Mainnet";
+    poolVersion = "v3";
+  }
+  else if (chainName.toUpperCase() === 'OSMOSIS') {
+    chainColor = "#5E12A0";
+    fullNetworkName = "Osmosis Mainnet";
+  }
+
+  // Format weight as percentage
+  const weightPercent = (weight * 100).toFixed(1);
+  
+  // Calculate price premium/discount compared to weighted average
+  const priceDiff = ((price / avgPrice) - 1) * 100;
+  const priceCompareText = priceDiff >= 0 
+    ? `+${priceDiff.toFixed(1)}% vs weighted avg`
+    : `${priceDiff.toFixed(1)}% vs weighted avg`;
+  
+  // Add pool version display if it exists
+  const versionText = poolVersion ? ` (${poolVersion})` : '';
+
+  return `
+    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="1200" height="628" fill="#1e2d3a"/>
+      
+      <!-- Title -->
+      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">$PAGE on ${chainName}</text>
+      
+      <!-- Network Name -->
+      <rect x="800" y="40" width="320" height="80" rx="10" fill="${chainColor}"/>
+      <text x="960" y="90" font-size="28" text-anchor="middle" fill="white" font-weight="bold">${fullNetworkName}${versionText}</text>
+      
+      <!-- Price -->
+      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">$${price.toFixed(6)}</tspan></text>
+      <text x="100" y="260" font-size="24" fill="#aaaaaa">${priceCompareText}</text>
+      
+      <!-- TVL -->
+      <text x="100" y="320" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
+      
+      <!-- Weight -->
+      <text x="100" y="380" font-size="42" fill="white">Weight: <tspan font-weight="bold" fill="${chainColor}">${weightPercent}%</tspan></text>
+      <text x="100" y="420" font-size="24" fill="#aaaaaa">of total liquidity across all networks</text>
+      
+      <!-- Pool Info (for v3) -->
+      ${poolVersion === 'v3' ? `
+      <rect x="100" y="470" width="500" height="80" rx="10" fill="#233240"/>
+      <text x="120" y="520" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
+      ` : ''}
+      
+      <!-- Footer with timestamp -->
+      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
+    </svg>
+  `;
+}
+
+// Error SVG with improved visuals
+function createErrorSvg(errorMessage) {
+  return `
+    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="628" fill="#5c1e1e"/>
+      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">Error Fetching $PAGE Prices</text>
+      <text x="100" y="220" font-size="48" fill="#eeeeee">Please try again later</text>
+      <text x="100" y="320" font-size="32" fill="#dddddd">${errorMessage || 'Connection error'}</text>
+      
+      <!-- Warning icon -->
+      <circle cx="1000" cy="120" r="70" fill="#5c1e1e" stroke="#ff6b6b" stroke-width="3"/>
+      <text x="1000" y="140" font-size="80" text-anchor="middle" fill="#ff6b6b">!</text>
+      
+      <!-- Footer -->
       <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
@@ -136,75 +229,56 @@ exports.handler = async function(event) {
               optimism: priceData.optimism,
               base: priceData.base,
               osmosis: priceData.osmosis
-            }
+            },
+            weights,
+            {
+              ethereumTVL: priceData.ethereumTVL,
+              optimismTVL: priceData.optimismTVL,
+              baseTVL: priceData.baseTVL,
+              osmosisTVL: priceData.osmosisTVL
+            }, 
+            marketCap, 
+            fdv, 
+            CIRCULATING_SUPPLY, 
+            TOTAL_SUPPLY
+          );
+          
+          const svgBase64 = Buffer.from(svg).toString('base64');
+          imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
+          
+          return {
+            statusCode: 200,
+            headers: {"Content-Type": "text/html"},
+            body: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta property="fc:frame" content="vNext" />
+              <meta property="fc:frame:image" content="${imageUrl}" />
+              <meta property="fc:frame:button:1" content="Ethereum" />
+              <meta property="fc:frame:button:2" content="Optimism" />
+              <meta property="fc:frame:button:3" content="Base" />
+              <meta property="fc:frame:button:4" content="Osmosis" />
+              <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+              <meta property="fc:frame:state" content="overview" />
+              <title>PAGE Token Metrics</title>
+            </head>
+            <body></body>
+            </html>
+            `
+          };
         }
-      } catch (error) {
-        console.error('Error processing button press:', error);
-        // Generate error SVG for button press errors
-        const svg = createErrorSvg(error.message);
         
-        // Encode SVG to data URI
-        const svgBase64 = Buffer.from(svg).toString('base64');
-        imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-      }
-    }
-    
-    // Initial frame or error recovery - with the three original buttons
-    return {
-      statusCode: 200,
-      headers: {"Content-Type": "text/html"},
-      body: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="fc:frame" content="vNext" />
-        <meta property="fc:frame:image" content="${imageUrl}" />
-        <meta property="fc:frame:button:1" content="Show Prices" />
-        <meta property="fc:frame:button:2" content="Visit PageDAO.org" />
-        <meta property="fc:frame:button:3" content="Join PAGE Channel" />
-        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-        <meta property="fc:frame:button:2:action" content="link" />
-        <meta property="fc:frame:button:2:target" content="https://pagedao.org" />
-        <meta property="fc:frame:button:3:action" content="link" />
-        <meta property="fc:frame:button:3:target" content="https://warpcast.com/~/channel/page" />
-        <title>PAGE Token Metrics</title>
-      </head>
-      <body></body>
-      </html>
-      `
-    };
-  } catch (error) {
-    console.error('Unhandled error in frame handler:', error);
-    
-    // Generate error SVG for catastrophic errors
-    const errorSvg = createErrorSvg("Service Temporarily Unavailable");
-    
-    // Get host for error recovery
-    const host = process.env.URL || 'https://pagetokenprices.netlify.app';
-    
-    // Encode SVG to data URI
-    const svgBase64 = Buffer.from(errorSvg).toString('base64');
-    const errorImageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-    
-    return {
-      statusCode: 200, // Still return 200 to show the error frame
-      headers: {"Content-Type": "text/html"},
-      body: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="fc:frame" content="vNext" />
-        <meta property="fc:frame:image" content="${errorImageUrl}" />
-        <meta property="fc:frame:button:1" content="Try Again" />
-        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-        <title>PAGE Token Metrics Error</title>
-      </head>
-      <body></body>
-      </html>
-      `
-    };
-  }
-},
+        // Handle initial "Show Prices" button press
+        else if (buttonPressed === 1 && isInitialButtonPress(body)) {
+          const svg = createOverviewSvg(
+            weightedAvgPrice, 
+            {
+              ethereum: priceData.ethereum,
+              optimism: priceData.optimism,
+              base: priceData.base,
+              osmosis: priceData.osmosis
+            },
             weights,
             {
               ethereumTVL: priceData.ethereumTVL,
@@ -221,57 +295,6 @@ exports.handler = async function(event) {
           // Encode SVG to data URI
           const svgBase64 = Buffer.from(svg).toString('base64');
           imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-          
-          // Modified to include a special Rebase button for Base chain
-          if (chain === "base") {
-            return {
-              statusCode: 200,
-              headers: {"Content-Type": "text/html"},
-              body: `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta property="fc:frame" content="vNext" />
-                <meta property="fc:frame:image" content="${imageUrl}" />
-                <meta property="fc:frame:button:1" content="Back to Overview" />
-                <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
-                <meta property="fc:frame:button:2:action" content="link" />
-                <meta property="fc:frame:button:2:target" content="${dexUrl}" />
-                <meta property="fc:frame:button:3" content="View on Rebase" />
-                <meta property="fc:frame:button:3:action" content="link" />
-                <meta property="fc:frame:button:3:target" content="https://www.rebase.finance/0xc4730f86d1F86cE0712a7b17EE919Db7dEFad7FE" />
-                <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-                <meta property="fc:frame:state" content="chain_${chain}" />
-                <title>PAGE Token on ${chainName}</title>
-              </head>
-              <body></body>
-              </html>
-              `
-            };
-          } else {
-            // Standard return for other chains
-            return {
-              statusCode: 200,
-              headers: {"Content-Type": "text/html"},
-              body: `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta property="fc:frame" content="vNext" />
-                <meta property="fc:frame:image" content="${imageUrl}" />
-                <meta property="fc:frame:button:1" content="Back to Overview" />
-                <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
-                <meta property="fc:frame:button:2:action" content="link" />
-                <meta property="fc:frame:button:2:target" content="${dexUrl}" />
-                <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-                <meta property="fc:frame:state" content="chain_${chain}" />
-                <title>PAGE Token on ${chainName}</title>
-              </head>
-              <body></body>
-              </html>
-              `
-            };
-          }
           
           return {
             statusCode: 200,
@@ -339,19 +362,19 @@ exports.handler = async function(event) {
           let tvl = "N/A";
           try {
             if (chain === "osmosis" && typeof priceData.osmosisTVL === 'number') {
-              tvl = `${priceData.osmosisTVL.toLocaleString()}`;
+              tvl = `$${priceData.osmosisTVL.toLocaleString()}`;
             } else if (chain === "ethereum" && typeof priceData.ethereumTVL === 'number') {
-              tvl = `${priceData.ethereumTVL.toLocaleString()}`;
+              tvl = `$${priceData.ethereumTVL.toLocaleString()}`;
             } else if (chain === "optimism" && typeof priceData.optimismTVL === 'number') {
-              tvl = `${priceData.optimismTVL.toLocaleString()}`;
+              tvl = `$${priceData.optimismTVL.toLocaleString()}`;
             } else if (chain === "base" && typeof priceData.baseTVL === 'number') {
-              tvl = `${priceData.baseTVL.toLocaleString()}`;
+              tvl = `$${priceData.baseTVL.toLocaleString()}`;
             } else {
               console.log(`No TVL data for ${chain}, using fallback calculation`);
               // Fallback to calculate TVL if missing in the cached data
               if (chain === "osmosis") {
                 const osmosisData = await fetchOsmosisData();
-                tvl = `${osmosisData.tvl.toLocaleString()}`;
+                tvl = `$${osmosisData.tvl.toLocaleString()}`;
               } else {
                 // For EVM chains, use the token config to fetch TVL if needed
                 const tokenConfig = PAGE_TOKEN_CONFIG.find(config => 
@@ -369,12 +392,12 @@ exports.handler = async function(event) {
                       price,
                       priceData.ethPrice
                     );
-                    tvl = `${totalTVL.toLocaleString()}`;
+                    tvl = `$${totalTVL.toLocaleString()}`;
                   } else {
                     const reserves = await getPoolReserves(tokenConfig.lpAddress, tokenConfig, chain);
                     const pageValueInPool = reserves.tokenAAmount * price;
                     const ethValue = reserves.tokenBAmount * priceData.ethPrice;
-                    tvl = `${(pageValueInPool + ethValue).toLocaleString()}`;
+                    tvl = `$${(pageValueInPool + ethValue).toLocaleString()}`;
                   }
                 }
               }
@@ -391,144 +414,121 @@ exports.handler = async function(event) {
           const svgBase64 = Buffer.from(svg).toString('base64');
           imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
           
-          const svgBase64 = Buffer.from(svg).toString('base64');
-          imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
-          
-          return {
-            statusCode: 200,
-            headers: {"Content-Type": "text/html"},
-            body: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta property="fc:frame" content="vNext" />
-              <meta property="fc:frame:image" content="${imageUrl}" />
-              <meta property="fc:frame:button:1" content="Ethereum" />
-              <meta property="fc:frame:button:2" content="Optimism" />
-              <meta property="fc:frame:button:3" content="Base" />
-              <meta property="fc:frame:button:4" content="Osmosis" />
-              <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-              <meta property="fc:frame:state" content="overview" />
-              <title>PAGE Token Metrics</title>
-            </head>
-            <body></body>
-            </html>
-            `
-          };
+          // Modified to include a special Rebase button for Base chain
+          if (chain === "base") {
+            return {
+              statusCode: 200,
+              headers: {"Content-Type": "text/html"},
+              body: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta property="fc:frame" content="vNext" />
+                <meta property="fc:frame:image" content="${imageUrl}" />
+                <meta property="fc:frame:button:1" content="Back to Overview" />
+                <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
+                <meta property="fc:frame:button:2:action" content="link" />
+                <meta property="fc:frame:button:2:target" content="${dexUrl}" />
+                <meta property="fc:frame:button:3" content="View on Rebase" />
+                <meta property="fc:frame:button:3:action" content="link" />
+                <meta property="fc:frame:button:3:target" content="https://www.rebase.finance/0xc4730f86d1F86cE0712a7b17EE919Db7dEFad7FE" />
+                <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+                <meta property="fc:frame:state" content="chain_${chain}" />
+                <title>PAGE Token on ${chainName}</title>
+              </head>
+              <body></body>
+              </html>
+              `
+            };
+          } else {
+            // Standard return for other chains
+            return {
+              statusCode: 200,
+              headers: {"Content-Type": "text/html"},
+              body: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta property="fc:frame" content="vNext" />
+                <meta property="fc:frame:image" content="${imageUrl}" />
+                <meta property="fc:frame:button:1" content="Back to Overview" />
+                <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
+                <meta property="fc:frame:button:2:action" content="link" />
+                <meta property="fc:frame:button:2:target" content="${dexUrl}" />
+                <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+                <meta property="fc:frame:state" content="chain_${chain}" />
+                <title>PAGE Token on ${chainName}</title>
+              </head>
+              <body></body>
+              </html>
+              `
+            };
+          }
         }
+      } catch (error) {
+        console.error('Error processing button press:', error);
+        // Generate error SVG for button press errors
+        const svg = createErrorSvg(error.message);
         
-        // Handle initial "Show Prices" button press
-        else if (buttonPressed === 1 && isInitialButtonPress(body)) {
-          const svg = createOverviewSvg(
-            weightedAvgPrice, 
-            {
-              ethereum: priceData.ethereum,
-              optimism: priceData.optimism,
-              base: priceData.base,
-              osmosis: priceData.osmosis
-            },
-            weights,
-            {
-              ethereumTVL: priceData.ethereumTVL,
-              optimismTVL: priceData.optimismTVL,
-              baseTVL: priceData.baseTVL,
-              osmosisTVL: priceData.osmosisTVL
-            }, 
-            marketCap, 
-            fdv, 
-            CIRCULATING_SUPPLY, 
-            TOTAL_SUPPLY
-          );
-
-// Error SVG with improved visuals
-function createErrorSvg(errorMessage) {
-  return `
-    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1200" height="628" fill="#5c1e1e"/>
-      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">Error Fetching $PAGE Prices</text>
-      <text x="100" y="220" font-size="48" fill="#eeeeee">Please try again later</text>
-      <text x="100" y="320" font-size="32" fill="#dddddd">${errorMessage || 'Connection error'}</text>
-      
-      <!-- Warning icon -->
-      <circle cx="1000" cy="120" r="70" fill="#5c1e1e" stroke="#ff6b6b" stroke-width="3"/>
-      <text x="1000" y="140" font-size="80" text-anchor="middle" fill="#ff6b6b">!</text>
-      
-      <!-- Footer -->
-      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
-    </svg>
-  `;
-}
-
-// Function to create chain-specific SVG
-function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {
-  // Get chain-specific styling
-  let chainColor = "#4dabf7"; // Default blue
-  let fullNetworkName = "Ethereum Mainnet";
-  let poolVersion = "";
-  
-  if (chainName.toUpperCase() === 'ETHEREUM') {
-    chainColor = "#6F7CBA";
-    fullNetworkName = "Ethereum Mainnet";
-    poolVersion = "v2";
+        // Encode SVG to data URI
+        const svgBase64 = Buffer.from(svg).toString('base64');
+        imageUrl = `data:image/svg+xml;base64,${svgBase64}`;
+      }
+    }
+    
+    // Initial frame or error recovery - with the three original buttons
+    return {
+      statusCode: 200,
+      headers: {"Content-Type": "text/html"},
+      body: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${imageUrl}" />
+        <meta property="fc:frame:button:1" content="Show Prices" />
+        <meta property="fc:frame:button:2" content="Visit PageDAO.org" />
+        <meta property="fc:frame:button:3" content="Join PAGE Channel" />
+        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+        <meta property="fc:frame:button:2:action" content="link" />
+        <meta property="fc:frame:button:2:target" content="https://pagedao.org" />
+        <meta property="fc:frame:button:3:action" content="link" />
+        <meta property="fc:frame:button:3:target" content="https://warpcast.com/~/channel/page" />
+        <title>PAGE Token Metrics</title>
+      </head>
+      <body></body>
+      </html>
+      `
+    };
+  } catch (error) {
+    console.error('Unhandled error in frame handler:', error);
+    
+    // Generate error SVG for catastrophic errors
+    const errorSvg = createErrorSvg("Service Temporarily Unavailable");
+    
+    // Get host for error recovery
+    const host = process.env.URL || 'https://pagetokenprices.netlify.app';
+    
+    // Encode SVG to data URI
+    const svgBase64 = Buffer.from(errorSvg).toString('base64');
+    const errorImageUrl = `data:image/svg+xml;base64,${svgBase64}`;
+    
+    return {
+      statusCode: 200, // Still return 200 to show the error frame
+      headers: {"Content-Type": "text/html"},
+      body: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${errorImageUrl}" />
+        <meta property="fc:frame:button:1" content="Try Again" />
+        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+        <title>PAGE Token Metrics Error</title>
+      </head>
+      <body></body>
+      </html>
+      `
+    };
   }
-  else if (chainName.toUpperCase() === 'OPTIMISM') {
-    chainColor = "#FF0420";
-    fullNetworkName = "Optimism Mainnet";
-    poolVersion = "v2";
-  }
-  else if (chainName.toUpperCase() === 'BASE') {
-    chainColor = "#0052FF";
-    fullNetworkName = "Base Mainnet";
-    poolVersion = "v3";
-  }
-  else if (chainName.toUpperCase() === 'OSMOSIS') {
-    chainColor = "#5E12A0";
-    fullNetworkName = "Osmosis Mainnet";
-  }
-
-  // Format weight as percentage
-  const weightPercent = (weight * 100).toFixed(1);
-  
-  // Calculate price premium/discount compared to weighted average
-  const priceDiff = ((price / avgPrice) - 1) * 100;
-  const priceCompareText = priceDiff >= 0 
-    ? `+${priceDiff.toFixed(1)}% vs weighted avg`
-    : `${priceDiff.toFixed(1)}% vs weighted avg`;
-  
-  // Add pool version display if it exists
-  const versionText = poolVersion ? ` (${poolVersion})` : '';
-
-  return `
-    <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
-      <!-- Background -->
-      <rect width="1200" height="628" fill="#1e2d3a"/>
-      
-      <!-- Title -->
-      <text x="100" y="120" font-size="64" fill="white" font-weight="bold">$PAGE on ${chainName}</text>
-      
-      <!-- Network Name -->
-      <rect x="800" y="40" width="320" height="80" rx="10" fill="${chainColor}"/>
-      <text x="960" y="90" font-size="28" text-anchor="middle" fill="white" font-weight="bold">${fullNetworkName}${versionText}</text>
-      
-      <!-- Price -->
-      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">${price.toFixed(6)}</tspan></text>
-      <text x="100" y="260" font-size="24" fill="#aaaaaa">${priceCompareText}</text>
-      
-      <!-- TVL -->
-      <text x="100" y="320" font-size="54" fill="white">TVL: <tspan font-weight="bold" fill="${chainColor}">${tvl}</tspan></text>
-      
-      <!-- Weight -->
-      <text x="100" y="380" font-size="42" fill="white">Weight: <tspan font-weight="bold" fill="${chainColor}">${weightPercent}%</tspan></text>
-      <text x="100" y="420" font-size="24" fill="#aaaaaa">of total liquidity across all networks</text>
-      
-      <!-- Pool Info (for v3) -->
-      ${poolVersion === 'v3' ? `
-      <rect x="100" y="470" width="500" height="80" rx="10" fill="#233240"/>
-      <text x="120" y="520" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
-      ` : ''}
-      
-      <!-- Footer with timestamp -->
-      <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
-    </svg>
-  `;
 }
