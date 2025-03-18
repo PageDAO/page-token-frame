@@ -66,21 +66,22 @@ async function fetchPagePrices() {
     throw error; // Let the error propagate to the caller
   }
 }
-
-/**
+ /**
  * Fetch ETH price in USD from Uniswap V3 pool
  */
 async function fetchEthPrice() {
   try {
     console.log('Fetching ETH price from Uniswap V3 pool...');
-    const provider = getProvider('base');
     
-    // Create contract instance with V3 ABI
-      const poolContract = new ethers.Contract(
-        ETH_USDC_PAIR.address, 
-        UNISWAP_V3_POOL_ABI, 
-        provider
-      );
+    // Make sure to await the provider
+    const provider = await getProvider('base');
+    
+    // Now create the contract with the resolved provider
+    const poolContract = new ethers.Contract(
+      ETH_USDC_PAIR.address, 
+      UNISWAP_V3_POOL_ABI, 
+      provider
+    );
     
     // Get slot0 which contains the current sqrt price
     const slot0 = await poolContract.slot0();
@@ -123,7 +124,6 @@ async function fetchEthPrice() {
     throw error;
   }
 }
-
 /**
  * Calculate PAGE price from pool data
  */
