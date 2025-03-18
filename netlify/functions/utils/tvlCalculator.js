@@ -111,8 +111,7 @@ function calculateTVLWeights(tvlData) {
     };
   }
 }
-
-/**
+ /**
  * Fetch Ethereum TVL
  */
 async function fetchEthereumTVL(pagePrice, ethPrice) {
@@ -124,8 +123,8 @@ async function fetchEthereumTVL(pagePrice, ethPrice) {
       throw new Error('Ethereum token config not found');
     }
     
-    // Get provider and create contract
-    const provider = getProvider('ethereum');
+    // Get provider and create contract - make sure to await
+    const provider = await getProvider('ethereum');
     const pairContract = new ethers.Contract(ethereumToken.lpAddress, UNISWAP_V2_PAIR_ABI, provider);
     
     // Get reserves
@@ -136,8 +135,8 @@ async function fetchEthereumTVL(pagePrice, ethPrice) {
     const ethReserve = ethereumToken.tokenIsToken0 ? reserve1 : reserve0;
     
     // Convert reserves to proper numeric values
-    const pageAmount = Number(pageReserve) / Math.pow(10, ethereumToken.decimals);
-    const ethAmount = Number(ethReserve) / Math.pow(10, 18); // ETH has 18 decimals
+    const pageAmount = Number(pageReserve.toString()) / Math.pow(10, ethereumToken.decimals);
+    const ethAmount = Number(ethReserve.toString()) / Math.pow(10, 18); // ETH has 18 decimals
     
     // Calculate TVL
     const pageTVL = pageAmount * pagePrice;
@@ -164,8 +163,8 @@ async function fetchOptimismTVL(pagePrice, ethPrice) {
       throw new Error('Optimism token config not found');
     }
     
-    // Get provider and create contract
-    const provider = getProvider('optimism');
+    // Get provider and create contract - make sure to await
+    const provider = await getProvider('optimism');
     const pairContract = new ethers.Contract(optimismToken.lpAddress, UNISWAP_V2_PAIR_ABI, provider);
     
     // Get reserves
@@ -176,8 +175,8 @@ async function fetchOptimismTVL(pagePrice, ethPrice) {
     const ethReserve = optimismToken.tokenIsToken0 ? reserve1 : reserve0;
     
     // Convert reserves to proper numeric values
-    const pageAmount = Number(pageReserve) / Math.pow(10, optimismToken.decimals);
-    const ethAmount = Number(ethReserve) / Math.pow(10, 18); // ETH has 18 decimals
+    const pageAmount = Number(pageReserve.toString()) / Math.pow(10, optimismToken.decimals);
+    const ethAmount = Number(ethReserve.toString()) / Math.pow(10, 18); // ETH has 18 decimals
     
     // Calculate TVL
     const pageTVL = pageAmount * pagePrice;
@@ -205,7 +204,7 @@ async function fetchBaseTVL(pagePrice, ethPrice) {
     }
     
     // For V3 pools, we need a different approach
-    const provider = getProvider('base');
+    const provider = await getProvider('base');
     
     // Extended ABI for V3 pool with liquidity function
     const poolAbiExtended = [
@@ -241,23 +240,23 @@ async function fetchBaseTVL(pagePrice, ethPrice) {
     
     // Calculate amounts from liquidity
     // These formulas are based on Uniswap V3 whitepaper and SDK
-    const sqrtRatioX96 = BigInt(slot0.sqrtPriceX96.toString());
-    const Q96 = BigInt(2) ** BigInt(96);
+    const sqrtRatioX96 = ethers.BigNumber.from(slot0.sqrtPriceX96.toString());
+    const Q96 = ethers.BigNumber.from(2).pow(96);
     
     // Helper function to calculate amounts from liquidity
     function getTokenAmountsFromLiquidity(sqrtRatioX96, liquidity) {
-      // Convert to BigInt for precision
-      const liquidityBigInt = BigInt(liquidity.toString());
+      // Convert to BigNumber for precision
+      const liquidityBN = ethers.BigNumber.from(liquidity.toString());
       
       // Calculate amount0 (token0 amount)
-      const amount0BigInt = (liquidityBigInt * Q96) / sqrtRatioX96;
+      const amount0BN = liquidityBN.mul(Q96).div(sqrtRatioX96);
       
       // Calculate amount1 (token1 amount)
-      const amount1BigInt = (liquidityBigInt * sqrtRatioX96) / Q96;
+      const amount1BN = liquidityBN.mul(sqrtRatioX96).div(Q96);
       
       // Convert back to Number with proper decimal adjustments
-      const amount0 = Number(amount0BigInt) / Math.pow(10, pageIsToken0 ? PAGE_DECIMALS : ETH_DECIMALS);
-      const amount1 = Number(amount1BigInt) / Math.pow(10, pageIsToken0 ? ETH_DECIMALS : PAGE_DECIMALS);
+      const amount0 = Number(amount0BN.toString()) / Math.pow(10, pageIsToken0 ? PAGE_DECIMALS : ETH_DECIMALS);
+      const amount1 = Number(amount1BN.toString()) / Math.pow(10, pageIsToken0 ? ETH_DECIMALS : PAGE_DECIMALS);
       
       return { amount0, amount1 };
     }
@@ -280,7 +279,6 @@ async function fetchBaseTVL(pagePrice, ethPrice) {
     throw error;
   }
 }
-
 /**
  * Fetch Osmosis TVL from pool data
  */
