@@ -1,4 +1,5 @@
-const { fetchPagePrices, getPoolReserves, fetchOsmosisData, getV3PoolTVL, calculateWeightedPrice } = require('./utils/tokenServices');
+const { fetchPagePrices } = require('./utils/tokenServices');
+const { fetchAllTVL, calculateTVLWeights } = require('./utils/tvlCalculator');
 const { PAGE_TOKEN_CONFIG } = require('./utils/tokenConfig');
 
 // Helper function to check if user is on a chain-specific view
@@ -27,11 +28,11 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
   const osmosisWeight = (weights.osmosis * 100).toFixed(1);
   
   // Format TVL values
-  const ethereumTVL = `$${tvls.ethereumTVL.toLocaleString()}`;
-  const optimismTVL = `$${tvls.optimismTVL.toLocaleString()}`;
-  const baseTVL = `$${tvls.baseTVL.toLocaleString()}`;
-  const osmosisTVL = `$${tvls.osmosisTVL.toLocaleString()}`;
-  const totalTVL = (tvls.ethereumTVL + tvls.optimismTVL + tvls.baseTVL + tvls.osmosisTVL).toLocaleString();
+  const ethereumTVL = `$${tvls.ethereum.toLocaleString()}`;
+  const optimismTVL = `$${tvls.optimism.toLocaleString()}`;
+  const baseTVL = `$${tvls.base.toLocaleString()}`;
+  const osmosisTVL = `$${tvls.osmosis.toLocaleString()}`;
+  const totalTVL = (tvls.ethereum + tvls.optimism + tvls.base + tvls.osmosis).toLocaleString();
   
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
@@ -206,14 +207,25 @@ exports.handler = async function(event) {
         buttonPressed = body.untrustedData?.buttonIndex;
         console.log("Button pressed:", buttonPressed);
         
-        // Fetch latest prices and TVL for all calculations
+        // Fetch latest prices
         const priceData = await fetchPagePrices();
-        console.log("Fetched prices and TVL:", priceData);
+        console.log("Fetched prices:", priceData);
         
-        // Calculate TVL-weighted average price
-        const { weightedAvgPrice, weights } = calculateWeightedPrice(priceData);
+        // Now that we have prices, fetch TVL data
+        const tvlData = await fetchAllTVL(priceData);
+        console.log("Fetched TVL data:", tvlData);
+        
+        // Calculate TVL-weighted weights
+        const weights = calculateTVLWeights(tvlData);
+        console.log("Calculated TVL weights:", weights);
+        
+        // Calculate weighted average price
+        const weightedAvgPrice = (priceData.ethereum * weights.ethereum) +
+                                (priceData.optimism * weights.optimism) +
+                                (priceData.base * weights.base) +
+                                (priceData.osmosis * weights.osmosis);
+        
         console.log("Calculated weighted average price:", weightedAvgPrice);
-        console.log("Network weights:", weights);
         
         // Calculate market cap and FDV based on weighted average price
         const marketCap = weightedAvgPrice * CIRCULATING_SUPPLY;
@@ -232,10 +244,10 @@ exports.handler = async function(event) {
             },
             weights,
             {
-              ethereumTVL: priceData.ethereumTVL,
-              optimismTVL: priceData.optimismTVL,
-              baseTVL: priceData.baseTVL,
-              osmosisTVL: priceData.osmosisTVL
+              ethereum: tvlData.ethereum,
+              optimism: tvlData.optimism,
+              base: tvlData.base,
+              osmosis: tvlData.osmosis
             }, 
             marketCap, 
             fdv, 
@@ -281,10 +293,10 @@ exports.handler = async function(event) {
             },
             weights,
             {
-              ethereumTVL: priceData.ethereumTVL,
-              optimismTVL: priceData.optimismTVL,
-              baseTVL: priceData.baseTVL,
-              osmosisTVL: priceData.osmosisTVL
+              ethereum: tvlData.ethereum,
+              optimism: tvlData.optimism,
+              base: tvlData.base,
+              osmosis: tvlData.osmosis
             }, 
             marketCap, 
             fdv, 
@@ -326,6 +338,7 @@ exports.handler = async function(event) {
           let dexUrl = "";
           let chainName = "";
           let weight = 0.25; // Default weight
+          let chainTVL = 0;
           
           switch(buttonPressed) {
             case 1: // Ethereum
@@ -333,6 +346,7 @@ exports.handler = async function(event) {
               price = priceData.ethereum;
               chainName = "Ethereum";
               weight = weights.ethereum;
+              chainTVL = tvlData.ethereum;
               dexUrl = PAGE_TOKEN_CONFIG[0].dexUrl;
               break;
             case 2: // Optimism
@@ -340,6 +354,7 @@ exports.handler = async function(event) {
               price = priceData.optimism;
               chainName = "Optimism";
               weight = weights.optimism;
+              chainTVL = tvlData.optimism;
               dexUrl = PAGE_TOKEN_CONFIG[1].dexUrl;
               break;
             case 3: // Base
@@ -347,6 +362,7 @@ exports.handler = async function(event) {
               price = priceData.base;
               chainName = "Base";
               weight = weights.base;
+              chainTVL = tvlData.base;
               dexUrl = PAGE_TOKEN_CONFIG[2].dexUrl;
               break;
             case 4: // Osmosis
@@ -354,58 +370,13 @@ exports.handler = async function(event) {
               price = priceData.osmosis;
               chainName = "Osmosis";
               weight = weights.osmosis;
+              chainTVL = tvlData.osmosis;
               dexUrl = "https://app.osmosis.zone/?from=USDC&to=PAGE";
               break;
           }
           
-          // Get TVL for this chain
-          let tvl = "N/A";
-          try {
-            if (chain === "osmosis" && typeof priceData.osmosisTVL === 'number') {
-              tvl = `$${priceData.osmosisTVL.toLocaleString()}`;
-            } else if (chain === "ethereum" && typeof priceData.ethereumTVL === 'number') {
-              tvl = `$${priceData.ethereumTVL.toLocaleString()}`;
-            } else if (chain === "optimism" && typeof priceData.optimismTVL === 'number') {
-              tvl = `$${priceData.optimismTVL.toLocaleString()}`;
-            } else if (chain === "base" && typeof priceData.baseTVL === 'number') {
-              tvl = `$${priceData.baseTVL.toLocaleString()}`;
-            } else {
-              console.log(`No TVL data for ${chain}, using fallback calculation`);
-              // Fallback to calculate TVL if missing in the cached data
-              if (chain === "osmosis") {
-                const osmosisData = await fetchOsmosisData();
-                tvl = `$${osmosisData.tvl.toLocaleString()}`;
-              } else {
-                // For EVM chains, use the token config to fetch TVL if needed
-                const tokenConfig = PAGE_TOKEN_CONFIG.find(config => 
-                  (chain === "ethereum" && config.chainId === 1) ||
-                  (chain === "optimism" && config.chainId === 10) ||
-                  (chain === "base" && config.chainId === 8453)
-                );
-                
-                if (tokenConfig) {
-                  if (chain === "base") {
-                    const totalTVL = await getV3PoolTVL(
-                      tokenConfig.lpAddress,
-                      tokenConfig,
-                      chain,
-                      price,
-                      priceData.ethPrice
-                    );
-                    tvl = `$${totalTVL.toLocaleString()}`;
-                  } else {
-                    const reserves = await getPoolReserves(tokenConfig.lpAddress, tokenConfig, chain);
-                    const pageValueInPool = reserves.tokenAAmount * price;
-                    const ethValue = reserves.tokenBAmount * priceData.ethPrice;
-                    tvl = `$${(pageValueInPool + ethValue).toLocaleString()}`;
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`Error getting TVL for ${chain}:`, error);
-            tvl = "Error calculating TVL";
-          }
+          // Format TVL for display
+          const tvl = `$${chainTVL.toLocaleString()}`;
           
           // Use the enhanced chain detail SVG with weight information
           const svg = createChainDetailSvg(chainName, price, tvl, weight, weightedAvgPrice);
