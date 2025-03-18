@@ -514,7 +514,9 @@ function calculateWeightedPrice(priceData) {
 module.exports = {
   fetchPagePrices,
   getPoolReserves,
-  fetchOsmosisTVL,
-  getV3PoolTVL,
+  fetchOsmosisPrice,
+  fetchEthereumPagePrice,
+  fetchOptimismPagePrice,
+  fetchBasePagePrice,
   calculateWeightedPrice
 };
