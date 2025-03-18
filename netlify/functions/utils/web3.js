@@ -1,27 +1,11 @@
 const { ethers } = require('ethers');
+const { RPC_URLS, BACKUP_RPC_URLS } = require('./tokenConfig');
 
-// Enhanced RPC configuration with multiple fallbacks from chainlist.org
-const RPC_URLS = {
-  ethereum: [
-    'https://eth.llamarpc.com',        // LlamaRPC is more reliable than drpc based on the error
-    'https://ethereum.publicnode.com', // Public Node
-    'https://rpc.ankr.com/eth',        // Ankr
-    'https://eth.meowrpc.com',         // MeowRPC
-    'https://ethereum.blockpi.network/v1/rpc/public', // BlockPI
-    'https://eth.drpc.org'             // DRPC (moved to end of list since it's hitting rate limits)
-  ],
-  optimism: [
-    'https://mainnet.optimism.io',
-    'https://optimism.llamarpc.com',
-    'https://optimism.meowrpc.com',
-    'https://optimism.blockpi.network/v1/rpc/public'
-  ],
-  base: [
-    'https://mainnet.base.org',
-    'https://base.llamarpc.com',
-    'https://base.publicnode.com',
-    'https://base.meowrpc.com'
-  ]
+// Combine primary and backup RPC URLs into arrays for fallback
+const COMBINED_RPC_URLS = {
+  ethereum: [RPC_URLS.ethereum, BACKUP_RPC_URLS.ethereum],
+  optimism: [RPC_URLS.optimism, BACKUP_RPC_URLS.optimism],
+  base: [RPC_URLS.base, BACKUP_RPC_URLS.base]
 };
 
 /**
@@ -30,14 +14,14 @@ const RPC_URLS = {
  * @returns {Promise<ethers.JsonRpcProvider>} - Working provider
  */
 async function getProvider(chain) {
-  if (!RPC_URLS[chain] || RPC_URLS[chain].length === 0) {
+  if (!COMBINED_RPC_URLS[chain] || COMBINED_RPC_URLS[chain].length === 0) {
     throw new Error(`No RPC URLs configured for chain: ${chain}`);
   }
   
   // Try each provider in order until one works
   const errors = [];
   
-  for (const rpcUrl of RPC_URLS[chain]) {
+  for (const rpcUrl of COMBINED_RPC_URLS[chain]) {
     try {
       console.log(`Trying RPC for ${chain}: ${rpcUrl}`);
       
@@ -64,5 +48,5 @@ async function getProvider(chain) {
 
 module.exports = {
   getProvider,
-  RPC_URLS
+  COMBINED_RPC_URLS
 };
