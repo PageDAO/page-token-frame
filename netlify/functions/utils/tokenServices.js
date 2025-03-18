@@ -10,59 +10,69 @@ const {
 const { getProvider } = require('./web3');
 const { UNISWAP_V2_PAIR_ABI, UNISWAP_V3_POOL_ABI } = require('./abis');
 
-// Cache for prices
+// Enhanced cache for prices and TVL
 let priceCache = {
   ethereum: null,
   optimism: null,
   base: null,
   osmosis: null,
+  ethereumTVL: null,
+  optimismTVL: null,
+  baseTVL: null,
+  osmosisTVL: null,
   timestamp: 0,
-  ethPrice: null,
-  osmosisTVL: null
+  ethPrice: null
 };
 
 /**
- * Fetches PAGE token prices from all supported chains
+ * Fetches PAGE token prices and TVL from all supported chains
  */
 async function fetchPagePrices() {
   // Check if cache is still valid
   const now = Date.now();
   if (priceCache.timestamp > 0 && now - priceCache.timestamp < CACHE_DURATION) {
-    console.log('Using cached prices:', priceCache);
+    console.log('Using cached prices and TVL:', priceCache);
     return priceCache;
   }
 
-  console.log('Fetching fresh PAGE token prices...');
+  console.log('Fetching fresh PAGE token prices and TVL...');
   
   try {
     // First get ETH price - we need this for all EVM chain calculations
     const ethPrice = await fetchEthPrice();
     console.log('Fetched ETH price:', ethPrice);
     
-    // Fetch prices in parallel
-    const [osmosisPrice, ethereumPrice, optimismPrice, basePrice, osmosisTVL] = await Promise.all([
-      fetchOsmosisPrice(),
-      fetchEthereumPagePrice(ethPrice),
-      fetchOptimismPagePrice(ethPrice),
-      fetchBasePagePrice(ethPrice),
-      fetchOsmosisTVL()
+    // Fetch prices and TVL in parallel
+    const [
+      osmosisData, 
+      ethereumData, 
+      optimismData, 
+      baseData
+    ] = await Promise.all([
+      fetchOsmosisData(),
+      fetchEthereumData(ethPrice),
+      fetchOptimismData(ethPrice),
+      fetchBaseData(ethPrice)
     ]);
 
-    // Update cache
+    // Update cache with both prices and TVLs
     priceCache = {
-      ethereum: ethereumPrice,
-      optimism: optimismPrice,
-      base: basePrice,
-      osmosis: osmosisPrice,
+      ethereum: ethereumData.price,
+      optimism: optimismData.price,
+      base: baseData.price,
+      osmosis: osmosisData.price,
+      ethereumTVL: ethereumData.tvl,
+      optimismTVL: optimismData.tvl,
+      baseTVL: baseData.tvl,
+      osmosisTVL: osmosisData.tvl,
       ethPrice: ethPrice,
-      osmosisTVL: osmosisTVL,
       timestamp: now
     };
 
-    console.log('Updated price cache:', priceCache);
+    console.log('Updated price and TVL cache:', priceCache);
     return priceCache;
   } catch (error) {
-    console.error('Error fetching prices:', error);
+    console.error('Error fetching prices and TVL:', error);
     throw error; // Let the error propagate to the caller
   }
 }
@@ -337,81 +347,11 @@ async function getV3PoolTVL(poolAddress, tokenConfig, chain, pagePrice, ethPrice
 }
 
 /**
- * Fetch Osmosis PAGE price
- */
-async function fetchOsmosisPrice() {
-  try {
-    console.log('Fetching Osmosis price...');
-    
-    // Get PAGE/OSMO pool data
-    const poolResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${POOL_ID}`);
-    
-    if (!poolResponse.data || !poolResponse.data.pool || !poolResponse.data.pool.pool_assets) {
-      throw new Error('Invalid pool data structure');
-    }
-    
-    const assets = poolResponse.data.pool.pool_assets;
-    
-    // Find PAGE and OSMO in pool assets
-    const pageAsset = assets.find(asset => 
-      asset.token.denom === OSMOSIS_PAGE_DENOM
-    );
-    
-    const osmoAsset = assets.find(asset => 
-      asset.token.denom === 'uosmo'
-    );
-    
-    if (!pageAsset || !osmoAsset) {
-      throw new Error('Could not identify tokens in pool');
-    }
-    
-    // Calculate PAGE price in OSMO
-    const pageAmount = Number(pageAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.PAGE);
-    const osmoAmount = Number(osmoAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.OSMO);
-    
-    // Get OSMO/USDC price
-    const osmoUsdcResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${OSMO_USDC_POOL_ID}`);
-    
-    if (!osmoUsdcResponse.data || !osmoUsdcResponse.data.pool || !osmoUsdcResponse.data.pool.pool_assets) {
-      throw new Error('Invalid OSMO/USDC pool data');
-    }
-    
-    const osmoUsdcAssets = osmoUsdcResponse.data.pool.pool_assets;
-    
-    const osmoUsdcAsset = osmoUsdcAssets.find(asset => 
-      asset.token.denom === 'uosmo'
-    );
-    
-    const usdcAsset = osmoUsdcAssets.find(asset => 
-      asset.token.denom.includes(OSMO_USDC_DENOM)
-    );
-    
-    if (!osmoUsdcAsset || !usdcAsset) {
-      throw new Error('Could not identify tokens in OSMO/USDC pool');
-    }
-    
-    const osmoAmountUsdcPool = Number(osmoUsdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.OSMO);
-    const usdcAmount = Number(usdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.USDC);
-    
-    const osmoUsdPrice = usdcAmount / osmoAmountUsdcPool;
-    
-    // Calculate PAGE price in USD
-    const pageUsdPrice = (osmoAmount * osmoUsdPrice) / pageAmount;
-    
-    console.log('Calculated PAGE price on Osmosis:', pageUsdPrice);
-    return pageUsdPrice;
-  } catch (error) {
-    console.error('Error fetching Osmosis price:', error);
-    throw error;
-  }
-}
-
-/**
  * Fetch Osmosis TVL from pool data
  */
-async function fetchOsmosisTVL() {
+async function fetchOsmosisData() {
   try {
-    console.log('Fetching Osmosis TVL...');
+    console.log('Fetching Osmosis price and TVL...');
     
     // Get PAGE/OSMO pool data (Pool 1344)
     const poolResponse = await axios.get(`${OSMOSIS_LCD}/osmosis/gamm/v1beta1/pools/${POOL_ID}`);
@@ -466,17 +406,24 @@ async function fetchOsmosisTVL() {
     // Calculate OSMO price in USD
     const osmoUsdPrice = usdcAmount / osmoAmountUsdcPool;
     
+    // Calculate PAGE price in USD
+    const pageUsdPrice = (osmoAmount * osmoUsdPrice) / pageAmount;
+    
     // Calculate TVL in USD
     const osmoValueInUsd = osmoAmount * osmoUsdPrice;
-    const pagePrice = (osmoAmount * osmoUsdPrice) / pageAmount;
-    const pageValueInUsd = pageAmount * pagePrice;
+    const pageValueInUsd = pageAmount * pageUsdPrice;
     
     const totalTvl = osmoValueInUsd + pageValueInUsd;
     
+    console.log('Calculated PAGE price on Osmosis:', pageUsdPrice);
     console.log('Calculated Osmosis TVL:', totalTvl);
-    return totalTvl;
+    
+    return {
+      price: pageUsdPrice,
+      tvl: totalTvl
+    };
   } catch (error) {
-    console.error('Error fetching Osmosis TVL:', error);
+    console.error('Error fetching Osmosis data:', error);
     throw error;
   }
 }
@@ -484,9 +431,9 @@ async function fetchOsmosisTVL() {
 /**
  * Fetch Ethereum PAGE price using actual Uniswap pool data
  */
-async function fetchEthereumPagePrice(ethPrice) {
+async function fetchEthereumData(ethPrice) {
   try {
-    console.log('Fetching Ethereum PAGE price...');
+    console.log('Fetching Ethereum PAGE price and TVL...');
     const ethereumToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 1);
     
     if (!ethereumToken || !ethereumToken.lpAddress) {
@@ -499,21 +446,31 @@ async function fetchEthereumPagePrice(ethPrice) {
     
     // Calculate PAGE price using the reserves and ETH price
     const pagePrice = calculatePagePrice(poolData, ethPrice);
-    console.log('Calculated PAGE price on Ethereum:', pagePrice);
     
-    return pagePrice;
+    // Calculate TVL in USD
+    const pageTVL = poolData.tokenAAmount * pagePrice;
+    const ethTVL = poolData.tokenBAmount * ethPrice;
+    const totalTVL = pageTVL + ethTVL;
+    
+    console.log('Calculated PAGE price on Ethereum:', pagePrice);
+    console.log('Calculated Ethereum TVL:', totalTVL);
+    
+    return {
+      price: pagePrice,
+      tvl: totalTVL
+    };
   } catch (error) {
-    console.error('Error fetching Ethereum PAGE price:', error);
+    console.error('Error fetching Ethereum data:', error);
     throw error;
   }
 }
 
 /**
- * Fetch Optimism PAGE price
+ * Fetch Optimism PAGE price and TVL
  */
-async function fetchOptimismPagePrice(ethPrice) {
+async function fetchOptimismData(ethPrice) {
   try {
-    console.log('Fetching Optimism PAGE price...');
+    console.log('Fetching Optimism PAGE price and TVL...');
     const optimismToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 10);
     
     if (!optimismToken || !optimismToken.lpAddress) {
@@ -526,21 +483,31 @@ async function fetchOptimismPagePrice(ethPrice) {
     
     // Calculate PAGE price using the reserves and ETH price
     const pagePrice = calculatePagePrice(poolData, ethPrice);
-    console.log('Calculated PAGE price on Optimism:', pagePrice);
     
-    return pagePrice;
+    // Calculate TVL in USD
+    const pageTVL = poolData.tokenAAmount * pagePrice;
+    const ethTVL = poolData.tokenBAmount * ethPrice;
+    const totalTVL = pageTVL + ethTVL;
+    
+    console.log('Calculated PAGE price on Optimism:', pagePrice);
+    console.log('Calculated Optimism TVL:', totalTVL);
+    
+    return {
+      price: pagePrice,
+      tvl: totalTVL
+    };
   } catch (error) {
-    console.error('Error fetching Optimism PAGE price:', error);
+    console.error('Error fetching Optimism data:', error);
     throw error;
   }
 }
 
 /**
- * Fetch Base PAGE price
+ * Fetch Base PAGE price and TVL
  */
-async function fetchBasePagePrice(ethPrice) {
+async function fetchBaseData(ethPrice) {
   try {
-    console.log('Fetching Base PAGE price...');
+    console.log('Fetching Base PAGE price and TVL...');
     const baseToken = PAGE_TOKEN_CONFIG.find(token => token.chainId === 8453);
     
     if (!baseToken || !baseToken.lpAddress) {
@@ -553,18 +520,84 @@ async function fetchBasePagePrice(ethPrice) {
     
     // Calculate PAGE price using the reserves and ETH price
     const pagePrice = calculatePagePrice(poolData, ethPrice);
-    console.log('Calculated PAGE price on Base:', pagePrice);
     
-    return pagePrice;
+    // For Base with V3 pool, get detailed TVL
+    const totalTVL = await getV3PoolTVL(
+      baseToken.lpAddress,
+      baseToken,
+      'base',
+      pagePrice,
+      ethPrice
+    );
+    
+    console.log('Calculated PAGE price on Base:', pagePrice);
+    console.log('Calculated Base TVL:', totalTVL);
+    
+    return {
+      price: pagePrice,
+      tvl: totalTVL
+    };
   } catch (error) {
-    console.error('Error fetching Base PAGE price:', error);
+    console.error('Error fetching Base data:', error);
     throw error;
+  }
+}
+
+// Calculate TVL-weighted average price
+function calculateWeightedPrice(priceData) {
+  try {
+    // Ensure all TVL values exist and are valid numbers
+    const ethereumTVL = typeof priceData.ethereumTVL === 'number' ? priceData.ethereumTVL : 0;
+    const optimismTVL = typeof priceData.optimismTVL === 'number' ? priceData.optimismTVL : 0;
+    const baseTVL = typeof priceData.baseTVL === 'number' ? priceData.baseTVL : 0;
+    const osmosisTVL = typeof priceData.osmosisTVL === 'number' ? priceData.osmosisTVL : 0;
+    
+    // Sum all TVLs
+    const totalTVL = ethereumTVL + optimismTVL + baseTVL + osmosisTVL;
+    
+    if (totalTVL <= 0) {
+      throw new Error('Total TVL is zero or negative');
+    }
+    
+    // Calculate weights for each chain based on TVL
+    const weights = {
+      ethereum: ethereumTVL / totalTVL,
+      optimism: optimismTVL / totalTVL,
+      base: baseTVL / totalTVL,
+      osmosis: osmosisTVL / totalTVL
+    };
+    
+    console.log('Chain weights for weighted average:', weights);
+    
+    // Calculate TVL-weighted average price
+    const weightedAvgPrice = (priceData.ethereum * weights.ethereum) +
+                            (priceData.optimism * weights.optimism) +
+                            (priceData.base * weights.base) +
+                            (priceData.osmosis * weights.osmosis);
+    
+    return {
+      weightedAvgPrice,
+      weights
+    };
+  } catch (error) {
+    console.error('Error calculating weighted price:', error);
+    // Fallback to simple average if TVL weighting fails
+    return {
+      weightedAvgPrice: (priceData.ethereum + priceData.optimism + priceData.base + priceData.osmosis) / 4,
+      weights: {
+        ethereum: 0.25,
+        optimism: 0.25,
+        base: 0.25,
+        osmosis: 0.25
+      }
+    };
   }
 }
 
 module.exports = {
   fetchPagePrices,
   getPoolReserves,
-  fetchOsmosisTVL,
-  getV3PoolTVL
+  fetchOsmosisData,
+  getV3PoolTVL,
+  calculateWeightedPrice
 };
