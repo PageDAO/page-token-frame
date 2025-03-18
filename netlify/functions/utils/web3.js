@@ -1,30 +1,63 @@
 const { ethers } = require('ethers');
-const { UNISWAP_V2_PAIR_ABI } = require('./abis');
-const { RPC_URLS, BACKUP_RPC_URLS } = require('./tokenConfig');
+
+// Enhanced RPC configuration with multiple fallbacks from chainlist.org
+const RPC_URLS = {
+  ethereum: [
+    'https://eth.llamarpc.com',        // LlamaRPC is more reliable than drpc based on the error
+    'https://ethereum.publicnode.com', // Public Node
+    'https://rpc.ankr.com/eth',        // Ankr
+    'https://eth.meowrpc.com',         // MeowRPC
+    'https://ethereum.blockpi.network/v1/rpc/public', // BlockPI
+    'https://eth.drpc.org'             // DRPC (moved to end of list since it's hitting rate limits)
+  ],
+  optimism: [
+    'https://mainnet.optimism.io',
+    'https://optimism.llamarpc.com',
+    'https://optimism.meowrpc.com',
+    'https://optimism.blockpi.network/v1/rpc/public'
+  ],
+  base: [
+    'https://mainnet.base.org',
+    'https://base.llamarpc.com',
+    'https://base.publicnode.com',
+    'https://base.meowrpc.com'
+  ]
+};
 
 /**
- * Get a provider for the specified chain with fallback to backup RPC
+ * Try all providers in the list until one works
+ * @param {string} chain - Chain name (ethereum, optimism, base)
+ * @returns {ethers.JsonRpcProvider} - Working provider
  */
-function getProvider(chain) {
-  const primaryRpcUrl = RPC_URLS[chain];
-  const backupRpcUrl = BACKUP_RPC_URLS[chain];
-  
-  if (!primaryRpcUrl && !backupRpcUrl) {
-    throw new Error(`No RPC URL configured for chain: ${chain}`);
+async function getProvider(chain) {
+  if (!RPC_URLS[chain] || RPC_URLS[chain].length === 0) {
+    throw new Error(`No RPC URLs configured for chain: ${chain}`);
   }
   
-  try {
-    console.log(`Using primary RPC for ${chain}: ${primaryRpcUrl}`);
-    return new ethers.JsonRpcProvider(primaryRpcUrl);
-  } catch (error) {
-    console.warn(`Primary RPC failed for ${chain}, trying backup`);
-    if (!backupRpcUrl) {
-      throw error;
+  // Try each provider in order until one works
+  const errors = [];
+  
+  for (const rpcUrl of RPC_URLS[chain]) {
+    try {
+      console.log(`Trying RPC for ${chain}: ${rpcUrl}`);
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      
+      // Test the provider with a simple call
+      const blockNumber = await provider.getBlockNumber();
+      console.log(`Successfully connected to ${rpcUrl}, block #${blockNumber}`);
+      
+      return provider;
+    } catch (error) {
+      console.warn(`RPC failed for ${rpcUrl}: ${error.message}`);
+      errors.push({url: rpcUrl, error: error.message});
     }
-    return new ethers.JsonRpcProvider(backupRpcUrl);
   }
+  
+  // If we get here, all providers failed
+  throw new Error(`All RPC providers failed for ${chain}: ${JSON.stringify(errors)}`);
 }
 
 module.exports = {
-  getProvider
+  getProvider,
+  RPC_URLS
 };
