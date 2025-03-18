@@ -76,7 +76,7 @@ async function fetchEthPrice() {
     // Make sure to await the provider
     const provider = await getProvider('base');
     
-    // Now create the contract with the resolved provider
+    // Create contract instance with V3 ABI
     const poolContract = new ethers.Contract(
       ETH_USDC_PAIR.address, 
       UNISWAP_V3_POOL_ABI, 
@@ -89,9 +89,6 @@ async function fetchEthPrice() {
     
     console.log('Raw sqrtPriceX96:', sqrtPriceX96.toString());
     
-    // For Uniswap V3, the sqrtPriceX96 is the square root of the price
-    // multiplied by 2^96
-    
     // Convert sqrtPriceX96 to BigNumber
     const sqrtPriceX96BN = ethers.BigNumber.from(sqrtPriceX96.toString());
     
@@ -101,8 +98,8 @@ async function fetchEthPrice() {
     // Divide by 2^192 (because we squared 2^96)
     const Q192 = ethers.BigNumber.from(2).pow(192);
     
-    // Calculate raw price
-    const rawPrice = Number(priceX192BigInt) / Number(Q192);
+    // Calculate raw price - convert to numbers for division
+    const rawPrice = Number(priceX192BN.toString()) / Number(Q192.toString());
     
     console.log('Raw price ratio:', rawPrice);
     
