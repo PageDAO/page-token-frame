@@ -62,26 +62,30 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
       <text x="950" y="120" font-size="18" fill="#aaaaaa">Weight</text>
       <text x="1050" y="120" font-size="18" fill="#aaaaaa">TVL</text>
       
-      <!-- Ethereum - Increased vertical spacing -->
-      <text x="720" y="160" font-size="24" fill="#6F7CBA" font-weight="bold">Ethereum</text>
+      <!-- Ethereum - With background box -->
+      <rect x="715" y="140" width="120" height="30" rx="5" fill="#1e2d3a" stroke="#6F7CBA" stroke-width="1.5"/>
+      <text x="720" y="160" font-size="22" fill="#6F7CBA" font-weight="bold">Ethereum</text>
       <text x="850" y="160" font-size="22" text-anchor="left" fill="#ffffff">${prices.ethereum.toFixed(6)}</text>
       <text x="950" y="160" font-size="22" text-anchor="left" fill="#ffffff">${ethereumWeight}%</text>
       <text x="1050" y="160" font-size="18" text-anchor="left" fill="#aaaaaa">${ethereumTVL}</text>
       
-      <!-- Optimism -->
-      <text x="720" y="210" font-size="24" fill="#FF0420" font-weight="bold">Optimism</text>
+      <!-- Optimism - With background box -->
+      <rect x="715" y="190" width="120" height="30" rx="5" fill="#1e2d3a" stroke="#FF0420" stroke-width="1.5"/>
+      <text x="720" y="210" font-size="22" fill="#FF0420" font-weight="bold">Optimism</text>
       <text x="850" y="210" font-size="22" text-anchor="left" fill="#ffffff">${prices.optimism.toFixed(6)}</text>
       <text x="950" y="210" font-size="22" text-anchor="left" fill="#ffffff">${optimismWeight}%</text>
       <text x="1050" y="210" font-size="18" text-anchor="left" fill="#aaaaaa">${optimismTVL}</text>
       
-      <!-- Base -->
-      <text x="720" y="260" font-size="24" fill="#0052FF" font-weight="bold">Base</text>
+      <!-- Base - With background box -->
+      <rect x="715" y="240" width="120" height="30" rx="5" fill="#1e2d3a" stroke="#0052FF" stroke-width="1.5"/>
+      <text x="720" y="260" font-size="22" fill="#0052FF" font-weight="bold">Base</text>
       <text x="850" y="260" font-size="22" text-anchor="left" fill="#ffffff">${prices.base.toFixed(6)}</text>
       <text x="950" y="260" font-size="22" text-anchor="left" fill="#ffffff">${baseWeight}%</text>
       <text x="1050" y="260" font-size="18" text-anchor="left" fill="#aaaaaa">${baseTVL}</text>
       
-      <!-- Osmosis -->
-      <text x="720" y="310" font-size="24" fill="#5E12A0" font-weight="bold">Osmosis</text>
+      <!-- Osmosis - With background box -->
+      <rect x="715" y="290" width="120" height="30" rx="5" fill="#1e2d3a" stroke="#5E12A0" stroke-width="1.5"/>
+      <text x="720" y="310" font-size="22" fill="#5E12A0" font-weight="bold">Osmosis</text>
       <text x="850" y="310" font-size="22" text-anchor="left" fill="#ffffff">${prices.osmosis.toFixed(6)}</text>
       <text x="950" y="310" font-size="22" text-anchor="left" fill="#ffffff">${osmosisWeight}%</text>
       <text x="1050" y="310" font-size="18" text-anchor="left" fill="#aaaaaa">${osmosisTVL}</text>
@@ -139,6 +143,13 @@ function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {
   // Add pool version display if it exists
   const versionText = poolVersion ? ` (${poolVersion})` : '';
 
+  // Add a visual button for Pool1344DAO if this is Osmosis
+  const pool1344Button = chainName.toUpperCase() === 'OSMOSIS' ? `
+    <!-- Pool1344DAO Button -->
+    <rect x="100" y="470" width="500" height="80" rx="10" fill="#5E12A0"/>
+    <text x="350" y="520" font-size="28" text-anchor="middle" fill="white" font-weight="bold">Visit Pool1344DAO.org</text>
+  ` : '';
+
   return `
     <svg width="1200" height="628" xmlns="http://www.w3.org/2000/svg">
       <!-- Background -->
@@ -152,7 +163,7 @@ function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {
       <text x="960" y="90" font-size="28" text-anchor="middle" fill="white" font-weight="bold">${fullNetworkName}${versionText}</text>
       
       <!-- Price -->
-      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">$${price.toFixed(6)}</tspan></text>
+      <text x="100" y="220" font-size="54" fill="white">Price: <tspan font-weight="bold" fill="${chainColor}">${price.toFixed(6)}</tspan></text>
       <text x="100" y="260" font-size="24" fill="#aaaaaa">${priceCompareText}</text>
       
       <!-- TVL -->
@@ -168,11 +179,15 @@ function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {
       <text x="120" y="520" font-size="28" fill="#dddddd">Pool ID: <tspan font-weight="bold" fill="#dddddd">2376403</tspan></text>
       ` : ''}
       
+      <!-- Pool1344DAO Button for Osmosis -->
+      ${pool1344Button}
+      
       <!-- Footer with timestamp -->
       <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
 }
+
 
 // Error SVG with improved visuals
 function createErrorSvg(errorMessage) {
@@ -276,12 +291,15 @@ exports.handler = async function(event) {
             <head>
               <meta property="fc:frame" content="vNext" />
               <meta property="fc:frame:image" content="${imageUrl}" />
-              <meta property="fc:frame:button:1" content="Ethereum" />
-              <meta property="fc:frame:button:2" content="Optimism" />
-              <meta property="fc:frame:button:3" content="Base" />
-              <meta property="fc:frame:button:4" content="Osmosis" />
+              <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
+              <meta property="fc:frame:button:1" content="Show Prices" />
+              <meta property="fc:frame:button:2" content="Visit PageDAO.org" />
+              <meta property="fc:frame:button:3" content="Join PAGE Channel" />
               <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-              <meta property="fc:frame:state" content="overview" />
+              <meta property="fc:frame:button:2:action" content="link" />
+              <meta property="fc:frame:button:2:target" content="https://pagedao.org" />
+              <meta property="fc:frame:button:3:action" content="link" />
+              <meta property="fc:frame:button:3:target" content="https://warpcast.com/~/channel/page" />
               <title>PAGE Token Metrics</title>
             </head>
             <body></body>
@@ -326,6 +344,7 @@ exports.handler = async function(event) {
             <head>
               <meta property="fc:frame" content="vNext" />
               <meta property="fc:frame:image" content="${imageUrl}" />
+              <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
               <meta property="fc:frame:button:1" content="Ethereum" />
               <meta property="fc:frame:button:2" content="Optimism" />
               <meta property="fc:frame:button:3" content="Base" />
@@ -338,6 +357,7 @@ exports.handler = async function(event) {
             </html>
             `
           };
+          
         }
         
         // Handle chain-specific button presses from the overview screen
@@ -405,6 +425,7 @@ exports.handler = async function(event) {
               <head>
                 <meta property="fc:frame" content="vNext" />
                 <meta property="fc:frame:image" content="${imageUrl}" />
+                <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
                 <meta property="fc:frame:button:1" content="Back to Overview" />
                 <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
                 <meta property="fc:frame:button:2:action" content="link" />
@@ -420,7 +441,38 @@ exports.handler = async function(event) {
               </html>
               `
             };
-          } else {
+            
+          }
+          // Special handling for Osmosis chain
+  else if (chain === "osmosis") {
+    return {
+      statusCode: 200,
+      headers: {"Content-Type": "text/html"},
+      body: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="${imageUrl}" />
+        <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
+        <meta property="fc:frame:button:1" content="Back to Overview" />
+        <meta property="fc:frame:button:2" content="Trade on ${chainName}" />
+        <meta property="fc:frame:button:2:action" content="link" />
+        <meta property="fc:frame:button:2:target" content="${dexUrl}" />
+        <meta property="fc:frame:button:3" content="Visit Pool1344DAO" />
+        <meta property="fc:frame:button:3:action" content="link" />
+        <meta property="fc:frame:button:3:target" content="https://pool1344dao.org" />
+        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+        <meta property="fc:frame:state" content="chain_${chain}" />
+        <title>PAGE Token on ${chainName}</title>
+      </head>
+      <body></body>
+      </html>
+      `
+    };
+    
+  }  
+          else {
             // Standard return for other chains
             return {
               statusCode: 200,
@@ -457,29 +509,31 @@ exports.handler = async function(event) {
     }
     
     // Initial frame or error recovery - with the three original buttons
-    return {
-      statusCode: 200,
-      headers: {"Content-Type": "text/html"},
-      body: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta property="fc:frame" content="vNext" />
-        <meta property="fc:frame:image" content="${imageUrl}" />
-        <meta property="fc:frame:button:1" content="Show Prices" />
-        <meta property="fc:frame:button:2" content="Visit PageDAO.org" />
-        <meta property="fc:frame:button:3" content="Join PAGE Channel" />
-        <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
-        <meta property="fc:frame:button:2:action" content="link" />
-        <meta property="fc:frame:button:2:target" content="https://pagedao.org" />
-        <meta property="fc:frame:button:3:action" content="link" />
-        <meta property="fc:frame:button:3:target" content="https://warpcast.com/~/channel/page" />
-        <title>PAGE Token Metrics</title>
-      </head>
-      <body></body>
-      </html>
-      `
-    };
+return {
+  statusCode: 200,
+  headers: {"Content-Type": "text/html"},
+  body: `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="${imageUrl}" />
+    <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
+    <meta property="fc:frame:button:1" content="Show Prices" />
+    <meta property="fc:frame:button:2" content="Visit PageDAO.org" />
+    <meta property="fc:frame:button:3" content="Join PAGE Channel" />
+    <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
+    <meta property="fc:frame:button:2:action" content="link" />
+    <meta property="fc:frame:button:2:target" content="https://pagedao.org" />
+    <meta property="fc:frame:button:3:action" content="link" />
+    <meta property="fc:frame:button:3:target" content="https://warpcast.com/~/channel/page" />
+    <title>PAGE Token Metrics</title>
+  </head>
+  <body></body>
+  </html>
+  `
+};
+
   } catch (error) {
     console.error('Unhandled error in frame handler:', error);
     
@@ -502,6 +556,7 @@ exports.handler = async function(event) {
       <head>
         <meta property="fc:frame" content="vNext" />
         <meta property="fc:frame:image" content="${errorImageUrl}" />
+        <meta property="fc:frame:image:link" content="https://hub.pagedao.org/" />
         <meta property="fc:frame:button:1" content="Try Again" />
         <meta property="fc:frame:post_url" content="${host}/.netlify/functions/frame" />
         <title>PAGE Token Metrics Error</title>
@@ -510,5 +565,6 @@ exports.handler = async function(event) {
       </html>
       `
     };
+    
   }
 }
