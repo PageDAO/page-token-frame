@@ -66,7 +66,8 @@ async function fetchPagePrices() {
     throw error; // Let the error propagate to the caller
   }
 }
- /**
+
+/**
  * Fetch ETH price in USD from Uniswap V3 pool
  */
 async function fetchEthPrice() {
@@ -121,6 +122,7 @@ async function fetchEthPrice() {
     throw error;
   }
 }
+
 /**
  * Calculate PAGE price from pool data
  */
@@ -134,7 +136,8 @@ function calculatePagePrice(poolData, ethPrice) {
  */
 async function getPoolReserves(lpAddress, tokenConfig, chain) {
   try {
-    const provider = getProvider(chain);
+    // Make sure to await the provider
+    const provider = await getProvider(chain);
     
     // Different handling based on pool type
     if (tokenConfig.poolType === 'v2') {
@@ -154,7 +157,12 @@ async function getPoolReserves(lpAddress, tokenConfig, chain) {
  * Get pool reserves for a Uniswap V2 pair
  */
 async function getV2PoolReserves(lpAddress, tokenConfig, provider) {
-  const pairContract = new ethers.Contract(lpAddress, UNISWAP_V2_PAIR_ABI, provider);
+  // Create contract with the provided provider
+  const pairContract = new ethers.Contract(
+    lpAddress, 
+    UNISWAP_V2_PAIR_ABI, 
+    provider
+  );
   
   // Get reserves
   const [reserve0, reserve1] = await pairContract.getReserves();
@@ -164,8 +172,8 @@ async function getV2PoolReserves(lpAddress, tokenConfig, provider) {
   const ethReserve = tokenConfig.tokenIsToken0 ? reserve1 : reserve0;
   
   // Convert reserves to proper numeric values based on decimals
-  const pageAmount = Number(pageReserve) / Math.pow(10, tokenConfig.decimals);
-  const ethAmount = Number(ethReserve) / Math.pow(10, 18); // ETH has 18 decimals
+  const pageAmount = Number(pageReserve.toString()) / Math.pow(10, tokenConfig.decimals);
+  const ethAmount = Number(ethReserve.toString()) / Math.pow(10, 18); // ETH has 18 decimals
   
   return {
     tokenAAmount: pageAmount, // PAGE
@@ -179,7 +187,13 @@ async function getV2PoolReserves(lpAddress, tokenConfig, provider) {
 async function getV3PoolReserves(lpAddress, tokenConfig, provider) {
   try {
     console.log(`Fetching V3 pool data for ${lpAddress}...`);
-    const poolContract = new ethers.Contract(lpAddress, UNISWAP_V3_POOL_ABI, provider);
+    
+    // Create contract with the provided provider
+    const poolContract = new ethers.Contract(
+      lpAddress, 
+      UNISWAP_V3_POOL_ABI, 
+      provider
+    );
     
     // Get token addresses to determine which is PAGE
     const token0Address = await poolContract.token0();
@@ -200,16 +214,13 @@ async function getV3PoolReserves(lpAddress, tokenConfig, provider) {
     
     console.log('V3 sqrtPriceX96:', sqrtPriceX96.toString());
     
-    // Calculate price from sqrtPriceX96
-    const sqrtPriceX96BigInt = BigInt(sqrtPriceX96.toString());
-    const priceX192BigInt = sqrtPriceX96BigInt * sqrtPriceX96BigInt;
-    const Q192 = BigInt(2) ** BigInt(192);
-    const rawPrice = Number(priceX192BigInt) / Number(Q192);
+    // Calculate price from sqrtPriceX96 using ethers.js v5 BigNumber
+    const sqrtPriceX96BN = ethers.BigNumber.from(sqrtPriceX96.toString());
+    const priceX192BN = sqrtPriceX96BN.mul(sqrtPriceX96BN);
+    const Q192 = ethers.BigNumber.from(2).pow(192);
+    const rawPrice = Number(priceX192BN.toString()) / Number(Q192.toString());
     
     console.log('V3 raw price ratio (token1/token0):', rawPrice);
-    
-    // From your logs, we know PAGE is token1 and ETH is token0
-    // So raw price = PAGE/ETH (this is backwards from what we want)
     
     // DEBUGGING: Let's track all calculations step by step
     console.log('Token0 decimals (ETH):', 18);
@@ -239,6 +250,107 @@ async function getV3PoolReserves(lpAddress, tokenConfig, provider) {
     };
   } catch (error) {
     console.error('Error getting V3 pool reserves:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get TVL for a Uniswap V3 pool
+ * @param {string} poolAddress - Address of the V3 pool
+ * @param {object} tokenConfig - Token configuration
+ * @param {string} chain - Chain name
+ * @param {number} pagePrice - Current PAGE price in USD
+ * @param {number} ethPrice - Current ETH price in USD
+ * @returns {Promise<number>} - TVL in USD
+ */
+async function getV3PoolTVL(poolAddress, tokenConfig, chain, pagePrice, ethPrice) {
+  try {
+    console.log(`Fetching V3 pool TVL for ${poolAddress}...`);
+    
+    // Make sure to await the provider
+    const provider = await getProvider(chain);
+    
+    // Extended ABI for V3 pool with liquidity function
+    const poolAbiExtended = [
+      ...UNISWAP_V3_POOL_ABI,
+      {
+        "inputs": [],
+        "name": "liquidity",
+        "outputs": [{ "internalType": "uint128", "name": "", "type": "uint128" }],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+    
+    // Create contract with the resolved provider
+    const poolContract = new ethers.Contract(
+      poolAddress, 
+      poolAbiExtended, 
+      provider
+    );
+    
+    // Get current liquidity in the pool
+    const liquidity = await poolContract.liquidity();
+    console.log('Total V3 pool liquidity:', liquidity.toString());
+    
+    // Get slot0 for the current tick and price
+    const slot0 = await poolContract.slot0();
+    const currentTick = slot0.tick;
+    console.log('Current tick:', currentTick);
+    
+    // Get token addresses
+    const token0Address = await poolContract.token0();
+    const token1Address = await poolContract.token1();
+    
+    // Check if PAGE is token0 or token1
+    const pageIsToken0 = token0Address.toLowerCase() === tokenConfig.address.toLowerCase();
+    const PAGE_DECIMALS = tokenConfig.decimals;
+    const ETH_DECIMALS = 18; // ETH has 18 decimals
+    
+    // Calculate amounts from liquidity
+    // These formulas are based on Uniswap V3 whitepaper and SDK
+    const sqrtRatioX96 = ethers.BigNumber.from(slot0.sqrtPriceX96.toString());
+    const Q96 = ethers.BigNumber.from(2).pow(96);
+    
+    // Helper function to calculate amounts from liquidity
+    function getTokenAmountsFromLiquidity(sqrtRatioX96, liquidity) {
+      // Convert to BigNumber for precision
+      const liquidityBN = ethers.BigNumber.from(liquidity.toString());
+      
+      // Calculate amount0 (token0 amount)
+      const amount0BN = liquidityBN.mul(Q96).div(sqrtRatioX96);
+      
+      // Calculate amount1 (token1 amount)
+      const amount1BN = liquidityBN.mul(sqrtRatioX96).div(Q96);
+      
+      // Convert back to Number with proper decimal adjustments
+      const amount0 = Number(amount0BN.toString()) / Math.pow(10, pageIsToken0 ? PAGE_DECIMALS : ETH_DECIMALS);
+      const amount1 = Number(amount1BN.toString()) / Math.pow(10, pageIsToken0 ? ETH_DECIMALS : PAGE_DECIMALS);
+      
+      return { amount0, amount1 };
+    }
+    
+    // Get token amounts from liquidity
+    const { amount0, amount1 } = getTokenAmountsFromLiquidity(sqrtRatioX96, liquidity);
+    
+    console.log('Amount token0:', amount0);
+    console.log('Amount token1:', amount1);
+    
+    // Calculate TVL - ensure we're assigning PAGE and ETH correctly
+    const pageAmount = pageIsToken0 ? amount0 : amount1;
+    const ethAmount = pageIsToken0 ? amount1 : amount0;
+    
+    const pageTVL = pageAmount * pagePrice;
+    const ethTVL = ethAmount * ethPrice;
+    const totalTVL = pageTVL + ethTVL;
+    
+    console.log('PAGE TVL:', pageTVL);
+    console.log('ETH TVL:', ethTVL);
+    console.log('Total TVL:', totalTVL);
+    
+    return totalTVL;
+  } catch (error) {
+    console.error('Error calculating V3 pool TVL:', error);
     throw error;
   }
 }
@@ -400,7 +512,7 @@ async function fetchEthereumPagePrice(ethPrice) {
       throw new Error('Ethereum token config not found');
     }
     
-    // Get actual pool reserves from Uniswap
+    // Get actual pool reserves from Uniswap - make sure to await the result
     const poolData = await getPoolReserves(ethereumToken.lpAddress, ethereumToken, 'ethereum');
     console.log('Ethereum pool data:', poolData);
     
@@ -427,7 +539,7 @@ async function fetchOptimismPagePrice(ethPrice) {
       throw new Error('Optimism token config not found');
     }
     
-    // Get actual pool reserves from Uniswap on Optimism
+    // Get actual pool reserves from Uniswap on Optimism - make sure to await the result
     const poolData = await getPoolReserves(optimismToken.lpAddress, optimismToken, 'optimism');
     console.log('Optimism pool data:', poolData);
     
@@ -454,7 +566,7 @@ async function fetchBasePagePrice(ethPrice) {
       throw new Error('Base token config not found');
     }
     
-    // Get actual pool reserves from Uniswap on Base
+    // Get actual pool reserves from Uniswap on Base - make sure to await the result
     const poolData = await getPoolReserves(baseToken.lpAddress, baseToken, 'base');
     console.log('Base pool data:', poolData);
     
@@ -469,55 +581,9 @@ async function fetchBasePagePrice(ethPrice) {
   }
 }
 
-/**
- * Calculate TVL-weighted average price
- * @param {Object} priceData - Object containing prices and TVL data
- * @returns {Object} - Object containing weighted average price and weights
- */
-function calculateWeightedPrice(priceData) {
-  try {
-    // Initially, we'll use simple equal weightings since TVL is calculated separately
-    // We can update weights based on TVL data when available
-    const weights = {
-      ethereum: 0.25,
-      optimism: 0.25,
-      base: 0.25,
-      osmosis: 0.25
-    };
-    
-    console.log('Using equal weights for weighted average:', weights);
-    
-    // Calculate simple average price
-    const weightedAvgPrice = (priceData.ethereum * weights.ethereum) +
-                            (priceData.optimism * weights.optimism) +
-                            (priceData.base * weights.base) +
-                            (priceData.osmosis * weights.osmosis);
-    
-    return {
-      weightedAvgPrice,
-      weights
-    };
-  } catch (error) {
-    console.error('Error calculating weighted price:', error);
-    // Fallback to simple average
-    return {
-      weightedAvgPrice: (priceData.ethereum + priceData.optimism + priceData.base + priceData.osmosis) / 4,
-      weights: {
-        ethereum: 0.25,
-        optimism: 0.25,
-        base: 0.25,
-        osmosis: 0.25
-      }
-    };
-  }
-}
-
 module.exports = {
   fetchPagePrices,
   getPoolReserves,
-  fetchOsmosisPrice,
-  fetchEthereumPagePrice,
-  fetchOptimismPagePrice,
-  fetchBasePagePrice,
-  calculateWeightedPrice
+  fetchOsmosisTVL,
+  getV3PoolTVL
 };
