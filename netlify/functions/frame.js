@@ -28,10 +28,10 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
   const osmosisWeight = (weights.osmosis * 100).toFixed(1);
   
   // Format TVL values
-  const ethereumTVL = `$${tvls.ethereum.toLocaleString()}`;
-  const optimismTVL = `$${tvls.optimism.toLocaleString()}`;
-  const baseTVL = `$${tvls.base.toLocaleString()}`;
-  const osmosisTVL = `$${tvls.osmosis.toLocaleString()}`;
+  const ethereumTVL = `${tvls.ethereum.toLocaleString()}`;
+  const optimismTVL = `${tvls.optimism.toLocaleString()}`;
+  const baseTVL = `${tvls.base.toLocaleString()}`;
+  const osmosisTVL = `${tvls.osmosis.toLocaleString()}`;
   const totalTVL = (tvls.ethereum + tvls.optimism + tvls.base + tvls.osmosis).toLocaleString();
   
   return `
@@ -43,53 +43,62 @@ function createOverviewSvg(weightedPrice, prices, weights, tvls, marketCap, fdv,
       <text x="100" y="80" font-size="52" fill="white" font-weight="bold">$PAGE Token Metrics</text>
       
       <!-- Key metrics section -->
-      <text x="100" y="150" font-size="42" fill="white">TVL-Weighted Price: $${weightedPrice.toFixed(6)}</text>
-      <text x="100" y="210" font-size="36" fill="white">Market Cap: $${(marketCap).toLocaleString()}</text>
-      <text x="100" y="260" font-size="36" fill="white">Fully Diluted Value: $${(fdv).toLocaleString()}</text>
-      <text x="100" y="310" font-size="36" fill="white">Total TVL: $${totalTVL}</text>
+      <text x="100" y="150" font-size="42" fill="white">TVL-Weighted Price: ${weightedPrice.toFixed(6)}</text>
+      <text x="100" y="210" font-size="36" fill="white">Market Cap: ${(marketCap).toLocaleString()}</text>
+      <text x="100" y="260" font-size="36" fill="white">Fully Diluted Value: ${(fdv).toLocaleString()}</text>
+      <text x="100" y="310" font-size="36" fill="white">Total TVL: ${totalTVL}</text>
       
       <!-- Supply information -->
       <text x="100" y="380" font-size="30" fill="#dddddd">Circulating Supply: ${circulatingSupply.toLocaleString()} PAGE</text>
       <text x="100" y="420" font-size="30" fill="#dddddd">Total Supply: ${totalSupply.toLocaleString()} PAGE</text>
       
-      <!-- Network label box -->
-      <rect x="700" y="40" width="420" height="380" rx="10" fill="#2a3f55"/>
+      <!-- Network label box - Increased height -->
+      <rect x="700" y="40" width="420" height="420" rx="10" fill="#2a3f55"/>
       <text x="910" y="80" font-size="28" text-anchor="middle" fill="white" font-weight="bold">Network Distribution</text>
       
-      <!-- Ethereum -->
-      <text x="720" y="130" font-size="24" fill="#6F7CBA" font-weight="bold">Ethereum:</text>
-      <text x="850" y="130" font-size="24" text-anchor="left" fill="#ffffff">$${prices.ethereum.toFixed(6)}</text>
-      <text x="1040" y="130" font-size="24" text-anchor="right" fill="#ffffff">${ethereumWeight}%</text>
-      <text x="1080" y="130" font-size="20" text-anchor="right" fill="#aaaaaa">${ethereumTVL}</text>
+      <!-- Network table headers -->
+      <text x="720" y="120" font-size="18" fill="#aaaaaa">Network</text>
+      <text x="850" y="120" font-size="18" fill="#aaaaaa">Price</text>
+      <text x="950" y="120" font-size="18" fill="#aaaaaa">Weight</text>
+      <text x="1050" y="120" font-size="18" fill="#aaaaaa">TVL</text>
+      
+      <!-- Ethereum - Increased vertical spacing -->
+      <text x="720" y="160" font-size="24" fill="#6F7CBA" font-weight="bold">Ethereum</text>
+      <text x="850" y="160" font-size="22" text-anchor="left" fill="#ffffff">${prices.ethereum.toFixed(6)}</text>
+      <text x="950" y="160" font-size="22" text-anchor="left" fill="#ffffff">${ethereumWeight}%</text>
+      <text x="1050" y="160" font-size="18" text-anchor="left" fill="#aaaaaa">${ethereumTVL}</text>
       
       <!-- Optimism -->
-      <text x="720" y="180" font-size="24" fill="#FF0420" font-weight="bold">Optimism:</text>
-      <text x="850" y="180" font-size="24" text-anchor="left" fill="#ffffff">$${prices.optimism.toFixed(6)}</text>
-      <text x="1040" y="180" font-size="24" text-anchor="right" fill="#ffffff">${optimismWeight}%</text>
-      <text x="1080" y="180" font-size="20" text-anchor="right" fill="#aaaaaa">${optimismTVL}</text>
+      <text x="720" y="210" font-size="24" fill="#FF0420" font-weight="bold">Optimism</text>
+      <text x="850" y="210" font-size="22" text-anchor="left" fill="#ffffff">${prices.optimism.toFixed(6)}</text>
+      <text x="950" y="210" font-size="22" text-anchor="left" fill="#ffffff">${optimismWeight}%</text>
+      <text x="1050" y="210" font-size="18" text-anchor="left" fill="#aaaaaa">${optimismTVL}</text>
       
       <!-- Base -->
-      <text x="720" y="230" font-size="24" fill="#0052FF" font-weight="bold">Base:</text>
-      <text x="850" y="230" font-size="24" text-anchor="left" fill="#ffffff">$${prices.base.toFixed(6)}</text>
-      <text x="1040" y="230" font-size="24" text-anchor="right" fill="#ffffff">${baseWeight}%</text>
-      <text x="1080" y="230" font-size="20" text-anchor="right" fill="#aaaaaa">${baseTVL}</text>
+      <text x="720" y="260" font-size="24" fill="#0052FF" font-weight="bold">Base</text>
+      <text x="850" y="260" font-size="22" text-anchor="left" fill="#ffffff">${prices.base.toFixed(6)}</text>
+      <text x="950" y="260" font-size="22" text-anchor="left" fill="#ffffff">${baseWeight}%</text>
+      <text x="1050" y="260" font-size="18" text-anchor="left" fill="#aaaaaa">${baseTVL}</text>
       
       <!-- Osmosis -->
-      <text x="720" y="280" font-size="24" fill="#5E12A0" font-weight="bold">Osmosis:</text>
-      <text x="850" y="280" font-size="24" text-anchor="left" fill="#ffffff">$${prices.osmosis.toFixed(6)}</text>
-      <text x="1040" y="280" font-size="24" text-anchor="right" fill="#ffffff">${osmosisWeight}%</text>
-      <text x="1080" y="280" font-size="20" text-anchor="right" fill="#aaaaaa">${osmosisTVL}</text>
+      <text x="720" y="310" font-size="24" fill="#5E12A0" font-weight="bold">Osmosis</text>
+      <text x="850" y="310" font-size="22" text-anchor="left" fill="#ffffff">${prices.osmosis.toFixed(6)}</text>
+      <text x="950" y="310" font-size="22" text-anchor="left" fill="#ffffff">${osmosisWeight}%</text>
+      <text x="1050" y="310" font-size="18" text-anchor="left" fill="#aaaaaa">${osmosisTVL}</text>
       
-      <!-- Legend -->
-      <text x="720" y="340" font-size="20" fill="#dddddd">Price | Weight | TVL</text>
-      <line x1="720" y1="350" x2="1080" y2="350" stroke="#555555" stroke-width="2"/>
+      <!-- Divider line -->
+      <line x1="720" y1="340" x2="1080" y2="340" stroke="#555555" stroke-width="2"/>
+      
+      <!-- Additional info -->
       <text x="720" y="380" font-size="18" fill="#aaaaaa">*Weighted by liquidity across networks</text>
+      <text x="720" y="410" font-size="18" fill="#aaaaaa">*TVL values in USD</text>
       
       <!-- Footer with timestamp -->
       <text x="100" y="580" font-size="24" fill="#aaaaaa">Last Updated: ${new Date().toLocaleString()}</text>
     </svg>
   `;
 }
+
 
 // Function to create chain-specific SVG
 function createChainDetailSvg(chainName, price, tvl, weight, avgPrice) {

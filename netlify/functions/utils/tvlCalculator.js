@@ -111,7 +111,8 @@ function calculateTVLWeights(tvlData) {
     };
   }
 }
- /**
+
+/**
  * Fetch Ethereum TVL
  */
 async function fetchEthereumTVL(pagePrice, ethPrice) {
@@ -279,6 +280,7 @@ async function fetchBaseTVL(pagePrice, ethPrice) {
     throw error;
   }
 }
+
 /**
  * Fetch Osmosis TVL from pool data
  */
@@ -336,25 +338,27 @@ async function fetchOsmosisTVL() {
     const osmoAmountUsdcPool = Number(osmoUsdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.OSMO);
     const usdcAmount = Number(usdcAsset.token.amount) / Math.pow(10, TOKEN_DECIMALS.USDC);
     
-    // Calculate OSMO price in USD
-    const osmoUsdPrice = usdcAmount / osmoAmountUsdcPool;
+        // Calculate OSMO price in USD
+        const osmoUsdPrice = usdcAmount / osmoAmountUsdcPool;
     
-    // Calculate TVL in USD
-    const osmoValueInUsd = osmoAmount * osmoUsdPrice;
-    const pagePrice = (osmoAmount * osmoUsdPrice) / pageAmount;
-    const pageValueInUsd = pageAmount * pagePrice;
+        // Calculate TVL in USD
+        const osmoValueInUsd = osmoAmount * osmoUsdPrice;
+        const pagePrice = (osmoAmount * osmoUsdPrice) / pageAmount;
+        const pageValueInUsd = pageAmount * pagePrice;
+        
+        const totalTvl = osmoValueInUsd + pageValueInUsd;
+        
+        console.log('Osmosis TVL:', totalTvl);
+        return totalTvl;
+      } catch (error) {
+        console.error('Error fetching Osmosis TVL:', error);
+        throw error;
+      }
+    }
     
-    const totalTvl = osmoValueInUsd + pageValueInUsd;
+    module.exports = {
+      fetchAllTVL,
+      calculateTVLWeights,
+      fetchOsmosisTVL
+    };
     
-    console.log('Osmosis TVL:', totalTvl);
-    return totalTvl;
-  } catch (error) {
-    console.error('Error fetching Osmosis TVL:', error);
-    throw error;
-  }
-}
-
-module.exports = {
-  fetchAllTVL,
-  calculateTVLWeights
-};
